@@ -91,8 +91,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'test',
         'USER': 'root',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
+        'PASSWORD': 'Familring1234!',
+        'HOST': 'prod-familring-db.c52ycw200956.ap-southeast-2.rds.amazonaws.com',
         'PORT': '3306',
     }
 }
