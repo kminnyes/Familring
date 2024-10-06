@@ -9,8 +9,10 @@ import 'question_list_screen.dart';
 import 'home_screen.dart';
 import 'calender_component_screen.dart';
 import 'mypage_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async{
+  await dotenv.load(fileName: ".env");
   runApp(MyApp());
 }
 
@@ -115,4 +117,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:openai_client/openai_client.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class TodayQuestion extends StatefulWidget {
   @override
@@ -6,8 +10,46 @@ class TodayQuestion extends StatefulWidget {
 }
 
 class _TodayQuestionState extends State<TodayQuestion> {
-  String question = "가장 좋아 하는 과일은 무엇인가요?"; // 질문
+  String question = "...Loading?"; // 질문
   String answer = ""; // 답변
+
+  @override
+  void initState() {
+    super.initState();
+    _openAi();
+  }
+
+
+  Future<void> _openAi() async {
+    final apiKey = dotenv.env['OPENAI_API_KEY']!;
+    final response = await http.post(
+      Uri.parse('https://api.openai.com/v1/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      },
+      body: jsonEncode({
+        'model': 'gpt-3.5-turbo',
+        'messages': [
+          {'role': 'system', 'content': 'You are a helpful assistant. Ask your users short, thought-provoking questions in korean'},
+          // {'role': 'user', 'content': 'What is Seoul?'}
+        ],
+        'max_tokens': 100,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(utf8.decode(response.bodyBytes)); //한국어로 변경
+      setState(() {
+        question = data['choices'][0]['message']['content'];
+      });
+    } else {
+      setState(() {
+        question = 'Error: ${response.reasonPhrase}';
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +134,10 @@ class _TodayQuestionState extends State<TodayQuestion> {
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),
+
+
           ],
+
         ),
       ),
     );
