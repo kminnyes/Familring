@@ -1,44 +1,68 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 
-class SignupScreen extends StatefulWidget {
-  @override
-  _SignupScreenState createState() => _SignupScreenState();
-}
-
-class _SignupScreenState extends State<SignupScreen> {
+class SignupScreen extends StatelessWidget {
   final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController(); // 이메일 입력 필드 추가
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _password2Controller = TextEditingController();
-  final TextEditingController _nicknameController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
-  Future<void> _register() async {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2:8000/register/'), //각자 에뮬레이터에 맞춰쓸 것
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'username': _usernameController.text,
-        'password': _passwordController.text,
-        'password2': _password2Controller.text,
-        'nickname': _nicknameController.text,
-      }),
-    );
+  // 회원가입 요청 함수
+  void _signup(BuildContext context) async {
+    String username = _usernameController.text;
+    String email = _emailController.text; // 이메일 데이터 추가
+    String password = _passwordController.text;
+    String confirmPassword = _confirmPasswordController.text;
 
-    if (response.statusCode == 201) {
+    if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입이 완료되었습니다.')),
+        SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
       );
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      // 회원가입 성공
-      print('회원가입 성공');
-    } else {
-      // 오류 처리
-      print('회원가입 실패: ${response.body}');
+      return;
+    }
+
+    // JWT 토큰 가져오기
+    String? token = await getToken();
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    try {
+      var url = Uri.parse('http://127.0.0.1:8000/api/register/');  // 회원가입 URL
+      var response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',  // JWT 토큰을 헤더에 포함
+        },
+        body: jsonEncode({
+          'username': username,
+          'email': email,  // 이메일 데이터 서버로 전달
+          'password': password,
+        }),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('회원가입이 완료되었습니다.')),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      } else {
+        var responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('회원가입에 실패했습니다: ${responseData['error']}')),
+        );
+      }
+    } catch (error) {
+      print('Error: $error');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입에 실패했습니다.')),
+        SnackBar(content: Text('회원가입 중 오류가 발생했습니다. 다시 시도해주세요.')),
       );
     }
   }
@@ -47,34 +71,47 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('회원가입'),
+        title: Text('회원 가입'),
+        backgroundColor: Colors.orange,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: _usernameController,
-              decoration: InputDecoration(labelText: '아이디'),
+              decoration: InputDecoration(
+                labelText: '아이디',
+              ),
             ),
             TextField(
-              controller: _nicknameController,
-              decoration: InputDecoration(labelText: '닉네임'),
+              controller: _emailController, // 이메일 입력 필드
+              decoration: InputDecoration(
+                labelText: '이메일',
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: '비밀번호'),
+              decoration: InputDecoration(
+                labelText: '비밀번호',
+              ),
               obscureText: true,
             ),
             TextField(
-              controller: _password2Controller,
-              decoration: InputDecoration(labelText: '비밀번호 확인'),
+              controller: _confirmPasswordController,
+              decoration: InputDecoration(
+                labelText: '비밀번호 확인',
+              ),
               obscureText: true,
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _register,
-              child: Text('회원가입'),
+              onPressed: () {
+                _signup(context);
+              },
+              child: Text('회원 가입하기'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             ),
           ],
