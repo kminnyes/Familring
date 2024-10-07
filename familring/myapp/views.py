@@ -33,7 +33,7 @@ class LoginView(APIView):
         return Response({"error": "유효하지 않은 로그인 정보입니다."}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-#오늘의 질문
+#오늘의 질문 (gpt)
 import logging
 logger = logging.getLogger(__name__)
 
