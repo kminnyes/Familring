@@ -4,7 +4,6 @@ import 'package:familring2/login_screen.dart';
 import 'package:familring2/signup_screen.dart';
 import 'package:familring2/welcome_screen.dart';
 import 'package:flutter/material.dart';
-import 'photo_album_screen.dart';
 import 'question_list_screen.dart';
 import 'home_screen.dart';
 import 'calender_component_screen.dart';
@@ -25,7 +24,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
         ),
         debugShowCheckedModeBanner: false,
-        home: WelcomeScreen(),
+        home: MyHomePage(),
         routes:{
           '/login' : (context) => LoginScreen(),
           '/signup' : (context) => SignupScreen(),
@@ -47,9 +46,8 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 2;
 
   static List<Widget> _widgetOptions = <Widget>[
-    PhotoAlbumScreen(),
-    QuestionListScreen(),
     HomeScreen(),
+    QuestionListScreen(),
     CalendarComponentScreen(),
     MyPageScreen(),
   ];
@@ -71,10 +69,10 @@ class _MyHomePageState extends State<MyHomePage> {
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: ImageIcon(
-              AssetImage('images/photo_album_icon.png'),
-              size: 40,
+              AssetImage('images/home_icon.png'),
+              size: 35,
             ),
-            label: '가족앨범',
+            label: '홈',
           ),
           BottomNavigationBarItem(
             icon: ImageIcon(
@@ -82,13 +80,6 @@ class _MyHomePageState extends State<MyHomePage> {
               size: 35,
             ),
             label: '데일리로그',
-          ),
-          BottomNavigationBarItem(
-            icon: ImageIcon(
-              AssetImage('images/home_icon.png'),
-              size: 35,
-            ),
-            label: '홈',
           ),
           BottomNavigationBarItem(
             icon: ImageIcon(
