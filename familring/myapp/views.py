@@ -275,7 +275,7 @@ def respond_to_invitation(request):
 
 
 
-#오늘의 질문
+#오늘의 질문 (gpt)
 import logging
 logger = logging.getLogger(__name__)
 
