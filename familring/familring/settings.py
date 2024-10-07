@@ -43,13 +43,47 @@ INSTALLED_APPS = [
     'myapp',
 ]
 
+DEFAULT_CHARSET = 'utf-8'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_SECURE = False  # 로컬 개발 환경에서는 False로 설정
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True  # 모든 요청마다 세션을 저장
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True  # 쿠키를 허용해야 세션이 작동함
+CORS_ALLOW_ORIGIN = ['http://localhost:8081',
+                     'http://10.0.2.2:8000']  # 클라이언트의 도메인
+CORS_ALLOW_HEADERS = ['content-type', 'X-CSRFToken','authorization']  # 필요한 헤더 허용
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS',
+]
+
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    ],
 }
 
-AUTH_USER_MODEL = 'myapp.CustomUser'
+AUTH_USER_MODEL = 'myapp.User'
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
