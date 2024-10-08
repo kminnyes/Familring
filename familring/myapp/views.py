@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer
-from .models import CustomUser
+from .serializers import UserSerializer
+from .models import User
 from django.http import JsonResponse
 from .models import DailyQuestion
 import openai
