@@ -71,6 +71,13 @@ flutter:
     - images/mypage.png
     - images/question.png
     - .env
+    - images/appbaricon.png
+    - images/icon1.svg
+    - images/icon2.svg
+    - images/icon3.svg
+    - images/icon4.svg
+    - images/icon5.svg
+    - images/icon6.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
