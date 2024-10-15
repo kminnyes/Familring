@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 
 class SignupScreen extends StatelessWidget {
   final TextEditingController _usernameController = TextEditingController();
@@ -23,20 +22,12 @@ class SignupScreen extends StatelessWidget {
       return;
     }
 
-    // JWT 토큰 가져오기
-    String? token = await getToken();
-    if (token == null) {
-      print('No token found!');
-      return;
-    }
-
     try {
       var url = Uri.parse('http://127.0.0.1:8000/api/register/');  // 회원가입 URL
       var response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',  // JWT 토큰을 헤더에 포함
         },
         body: jsonEncode({
           'username': username,

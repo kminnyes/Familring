@@ -14,42 +14,54 @@ import 'mypage_screen.dart' as mypage; // 별칭 사용하여 중복 방지
 import 'package:familring2/edit_profile_screen.dart' as edit_profile;
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 
-
-void main() async{
-  await dotenv.load(fileName: ".env");
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  double savedFontSize = await getSavedFontSize(); // 저장된 글씨 크기를 가져옴
-  runApp(MyApp(fontSize: savedFontSize));
+  await dotenv.load(fileName: ".env");
+
+  // 저장된 토큰이 있는지 확인
+  String? token = await getToken();
+
+  // 저장된 글씨 크기 가져오기
+  double savedFontSize = await getSavedFontSize();
+
+  // 초기 경로 설정: 토큰이 없으면 로그인 화면, 있으면 홈 화면
+  runApp(MyApp(
+    initialRoute: token == null ? '/welcome' : '/home',
+    fontSize: savedFontSize,
+  ));
 }
 
 class MyApp extends StatelessWidget {
+  final String initialRoute;
   final double fontSize;
-  MyApp({required this.fontSize});
+
+  MyApp({required this.initialRoute, required this.fontSize});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'Flutter Navigation Bar',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          textTheme: TextTheme(
-            bodyMedium: TextStyle(fontSize: fontSize), // `bodyMedium` 사용
-            bodyLarge: TextStyle(fontSize: fontSize),
-            headlineSmall: TextStyle(fontSize: fontSize), // 헤드라인에도 적용
-          ),
+      title: 'Flutter Navigation Bar',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        textTheme: TextTheme(
+          bodyMedium: TextStyle(fontSize: fontSize), // `bodyMedium` 사용
+          bodyLarge: TextStyle(fontSize: fontSize),
+          headlineSmall: TextStyle(fontSize: fontSize), // 헤드라인에도 적용
         ),
-        debugShowCheckedModeBanner: false,
-        home: MyHomePage(),
-        routes:{
-          '/login' : (context) => LoginScreen(),
-          '/signup' : (context) => SignupScreen(),
-          '/home' : (context) => MyHomePage(),
-          '/calender' : (context) => CalendarMainScreen(),
-          '/bucketlist' : (context) => BucketListScreen(),
-          '/today_question': (context) => QuestionListScreen(),
-          '/edit_profile': (context) => EditProfileScreen(nickname: '닉네임'), // 기본 닉네임 추가
-          '/font_size_settings': (context) => FontSizeSettingsScreen(),
-        }
+      ),
+      debugShowCheckedModeBanner: false,
+      initialRoute: initialRoute, // 초기 경로 설정
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/signup': (context) => SignupScreen(),
+        '/home': (context) => MyHomePage(),
+        '/calender': (context) => CalendarMainScreen(),
+        '/bucketlist': (context) => BucketListScreen(),
+        '/today_question': (context) => QuestionListScreen(),
+        '/edit_profile': (context) => EditProfileScreen(nickname: '닉네임'),
+        '/font_size_settings': (context) => FontSizeSettingsScreen(),
+        '/welcome' : (context) => WelcomeScreen()
+      },
     );
   }
 }
