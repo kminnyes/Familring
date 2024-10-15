@@ -128,6 +128,9 @@ DATABASES = {
         'PASSWORD': 'Familring1234!',
         'HOST': 'prod-familring-db.c52ycw200956.ap-southeast-2.rds.amazonaws.com',
         'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'"
+        },
     }
 }
 
