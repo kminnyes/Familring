@@ -121,7 +121,19 @@ class _BucketListScreenState extends State<BucketListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('버킷리스트'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          child: SizedBox(
+            width: 42, // 이미지 크기 조정
+            height: 42,
+            child: Image.asset(
+              'images/appbaricon.png', // 이미지 파일 경로
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: _bucketList.isEmpty
           ? Center(child: CircularProgressIndicator()) // 데이터가 로드될 때 로딩 인디케이터 표시
@@ -157,7 +169,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddBucketDialog,
-        backgroundColor: Colors.orange,
+        backgroundColor: Color.fromARGB(255, 255, 207, 102),
         child: Icon(Icons.add),
       ),
     );

@@ -45,9 +45,19 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('홈'),
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          child: SizedBox(
+            width: 42, // 이미지 크기 조정
+            height: 42,
+            child: Image.asset(
+              'images/appbaricon.png', // 이미지 파일 경로
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Container(
         color: Colors.white,
@@ -65,7 +75,7 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                 child: Card(
                   color: Colors.orange.shade100,
                   child: ListTile(
-                    leading: Icon(Icons.book, color: Colors.orange),
+                    leading: Icon(Icons.book, color: Color.fromARGB(255, 255, 207, 102)),
                     title: Text(
                       '우리 가족 버킷리스트',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -94,7 +104,7 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                           children: [
                             Text(
                               '7월',
-                              style: TextStyle(fontSize: 32, color: Colors.orange),
+                              style: TextStyle(fontSize: 32, color: Color.fromARGB(255, 255, 207, 102)),
                             ),
                           ],
                         ),
@@ -130,9 +140,9 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                           headerStyle: HeaderStyle(
                             formatButtonVisible: false,
                             titleCentered: true,
-                            titleTextStyle: TextStyle(fontSize: 20, color: Colors.orange),
-                            leftChevronIcon: Icon(Icons.chevron_left, color: Colors.orange),
-                            rightChevronIcon: Icon(Icons.chevron_right, color: Colors.orange),
+                            titleTextStyle: TextStyle(fontSize: 20, color: Color.fromARGB(255, 255, 207, 102)),
+                            leftChevronIcon: Icon(Icons.chevron_left, color: Color.fromARGB(255, 255, 207, 102)),
+                            rightChevronIcon: Icon(Icons.chevron_right, color: Color.fromARGB(255, 255, 207, 102)),
                             decoration: BoxDecoration(
                               color: Colors.white,
                             ),
@@ -180,7 +190,7 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                               return Container(
                                 margin: const EdgeInsets.all(6.0),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange,
+                                  color: Color.fromARGB(255, 255, 207, 102),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(

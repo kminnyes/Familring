@@ -192,28 +192,25 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('캘린더'),
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          child: SizedBox(
+            width: 42, // 이미지 크기 조정
+            height: 42,
+            child: Image.asset(
+              'images/appbaricon.png', // 이미지 파일 경로
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Container(
         color: Colors.white,
         child: Column(
           children: [
             SizedBox(height: 40), // AppBar와 캘린더 사이의 간격입니다.
-            Container(
-              color: Colors.white,
-              padding: EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${_focusedDay.month}월',
-                    style: TextStyle(fontSize: 32, color: Colors.orange),
-                  ),
-                ],
-              ),
-            ),
             TableCalendar(
               focusedDay: _focusedDay,
               firstDay: DateTime.utc(2020, 1, 1),
@@ -222,34 +219,60 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
               onDaySelected: _onDaySelected,
               eventLoader: _getEventsForDay,
               calendarStyle: CalendarStyle(
-                todayTextStyle: TextStyle(color: Colors.black),
+                todayTextStyle: TextStyle(color: Colors.white),
                 todayDecoration: BoxDecoration(
                   color: Colors.orangeAccent,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orangeAccent.withOpacity(0.5),
+                      spreadRadius: 0,
+                      blurRadius: 0,
+                      offset: Offset(0, 0),
+                    ),
+                  ],
                 ),
                 selectedDecoration: BoxDecoration(
-                  color: Colors.orange,
+                  color: Colors.orangeAccent,
                   shape: BoxShape.circle,
                 ),
                 markerDecoration: BoxDecoration(
                   color: Colors.green,
                   shape: BoxShape.circle,
                 ),
-                outsideDaysVisible: false,
-                weekendTextStyle: TextStyle(color: Colors.red),
-                holidayTextStyle: TextStyle(color: Colors.red),
-                cellMargin: EdgeInsets.symmetric(vertical: 12.0),
+                outsideDaysVisible: true,
+                outsideTextStyle: TextStyle(color: Colors.grey.withOpacity(0.5)), // 지난 달과 다음 달 날짜를 옅은 회색으로 표시
+                disabledTextStyle: TextStyle(color: Colors.grey),
+                weekendTextStyle: TextStyle(
+                  color: Colors.red,
+                ),
+                cellMargin: EdgeInsets.symmetric(vertical: 14.0),
               ),
               headerStyle: HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
-                titleTextStyle: TextStyle(fontSize: 20, color: Colors.orange),
-                leftChevronIcon: Icon(Icons.chevron_left, color: Colors.orange),
-                rightChevronIcon: Icon(Icons.chevron_right, color: Colors.orange),
+                titleTextFormatter: (date, locale) {
+                  return '${date.year}년 ${date.month}월'; // '2024년 10월' 형식으로 표시
+                },
+                titleTextStyle: TextStyle(
+                  fontSize: 23, // 글씨 크기 설정
+                  fontWeight: FontWeight.bold, // 굵은 글씨 설정
+                  color: Color.fromARGB(255, 255, 207, 102),
+                ),
+                leftChevronIcon: Icon(Icons.chevron_left, size: 30, color: Color.fromARGB(255, 255, 207, 102)),
+                rightChevronIcon: Icon(Icons.chevron_right, size: 30, color: Color.fromARGB(255, 255, 207, 102)),
               ),
               daysOfWeekStyle: DaysOfWeekStyle(
-                weekendStyle: TextStyle(color: Colors.red),
+                weekdayStyle: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+                weekendStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue, // 토요일은 파란색으로 설정
+                ),
               ),
+              daysOfWeekHeight: 40.0, // 요일 부분의 높이를 키움
               calendarBuilders: CalendarBuilders(
                 dowBuilder: (context, day) {
                   final days = ['월', '화', '수', '목', '금', '토', '일'];
@@ -259,14 +282,33 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                     child: Text(
                       text,
                       style: TextStyle(
+                        fontWeight: FontWeight.bold,
                         color: day.weekday == DateTime.saturday
-                            ? Colors.blue
+                            ? Colors.blue // 토요일 색상
                             : day.weekday == DateTime.sunday
-                            ? Colors.red
+                            ? Colors.red // 일요일 색상
                             : Colors.black,
                       ),
                     ),
                   );
+                },
+                defaultBuilder: (context, date, _) {
+                  if (date.weekday == DateTime.saturday) {
+                    return Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(color: Colors.blue),
+                      ),
+                    );
+                  } else if (date.weekday == DateTime.sunday) {
+                    return Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    );
+                  }
+                  return null;
                 },
                 markerBuilder: (context, date, events) {
                   if (events.isNotEmpty) {
@@ -296,6 +338,10 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                 },
               ),
             ),
+
+
+
+
             Expanded(
               child: ListView.builder(
                 itemCount: _selectedEvents.length,
@@ -313,7 +359,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
         padding: const EdgeInsets.all(20.0),
         child: FloatingActionButton(
           onPressed: _showAddEventDialog,
-          backgroundColor: Colors.orange,
+          backgroundColor: Color.fromARGB(255, 255, 207, 102),
           child: Icon(Icons.add),
         ),
       ),

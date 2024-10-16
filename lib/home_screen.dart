@@ -44,8 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('홈'),
         backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          child: SizedBox(
+            width: 42, // 이미지 크기 조정
+            height: 42,
+            child: Image.asset(
+              'images/appbaricon.png', // 이미지 파일 경로
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Center(
         child: Text(
