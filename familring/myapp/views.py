@@ -29,7 +29,10 @@ def get_csrf_token(request):
     return Response({'csrfToken': csrf_token})
 
 # 회원가입
+from rest_framework.permissions import AllowAny
+
 @api_view(['POST'])
+@permission_classes([AllowAny])  # 인증이 필요하지 않도록 설정
 def register(request):
     data = request.data.copy()
     data['password'] = make_password(data['password'])
