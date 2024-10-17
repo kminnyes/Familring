@@ -17,54 +17,75 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
   @override
   void initState() {
     super.initState();
-    _events = {
-      DateTime.utc(2024, 7, 16): [Event('아빠 생신')],
-      DateTime.utc(2024, 7, 22): [Event('가족 여행 시작')],
-      DateTime.utc(2024, 7, 25): [Event('가족 여행 종료')],
-    };
+    _events = {};
     _selectedEvents = [];
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
+    _fetchEvents(); // 초기화 시 이벤트를 가져옵니다.
   }
 
   List<Event> _getEventsForDay(DateTime day) {
-    return _events[day] ?? [];
+    return _events[DateTime(day.year, day.month, day.day)] ?? [];
   }
 
-  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    if (!isSameDay(_selectedDay, selectedDay)) {
-      setState(() {
-        _selectedDay = selectedDay;
-        _focusedDay = focusedDay;
-        _selectedEvents = _getEventsForDay(selectedDay);
-      });
-    }
+  Future<void> _fetchEvents() async {
+    DateTime exampleDate = DateTime.now();
+    _events[exampleDate] = [Event('예시 일정 1'), Event('예시 일정 2')];
+
+    setState(() {
+      _selectedEvents = _getEventsForDay(_selectedDay);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: Padding(
-          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0),
           child: SizedBox(
-            width: 42, // 이미지 크기 조정
+            width: 42,
             height: 42,
             child: Image.asset(
-              'images/appbaricon.png', // 이미지 파일 경로
+              'images/appbaricon.png',
               fit: BoxFit.contain,
             ),
           ),
         ),
       ),
-      body: Container(
-        color: Colors.white,
-        child: Padding(
+      body: SingleChildScrollView( // 스크롤 가능하도록 추가
+        child: Container(
+          color: Colors.white,
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '우리 가족 ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '버킷리스트',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -72,19 +93,65 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                     MaterialPageRoute(builder: (context) => BucketListScreen()),
                   );
                 },
-                child: Card(
-                  color: Colors.orange.shade100,
-                  child: ListTile(
-                    leading: Icon(Icons.book, color: Color.fromARGB(255, 255, 207, 102)),
-                    title: Text(
-                      '우리 가족 버킷리스트',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '버킷리스트 확인하러 가기',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.normal,
+                      ),
                     ),
-                    subtitle: Text('우리 가족 만의 버킷리스트를 만들고 함께 실천해보세요!'),
                   ),
                 ),
               ),
-              SizedBox(height: 50),
+              SizedBox(height: 40),
+              Container(
+                width: MediaQuery.of(context).size.width, // 앱의 가로 길이에 맞춤
+                height: 7, // 선의 두께를 더 두껍게 설정
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade100,
+                      blurRadius: 1,
+                      spreadRadius: 0.5,
+                      offset: Offset(0, 1), // Inner shadow를 구현하기 위한 설정
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 40),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '우리 가족 ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '캘린더',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 25),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -92,136 +159,124 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                     MaterialPageRoute(builder: (context) => CalendarMainScreen()),
                   );
                 },
-                child: Card(
-                  color: Colors.white,
-                  elevation: 4,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '7월',
-                              style: TextStyle(fontSize: 32, color: Color.fromARGB(255, 255, 207, 102)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20.0), // 네비게이션 바와의 간격을 주기 위해 패딩 추가
-                        child: TableCalendar(
-                          firstDay: DateTime.utc(2020, 1, 1),
-                          lastDay: DateTime.utc(2030, 12, 31),
-                          focusedDay: _focusedDay,
-                          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                          onDaySelected: _onDaySelected,
-                          eventLoader: _getEventsForDay,
-                          calendarStyle: CalendarStyle(
-                            todayTextStyle: TextStyle(color: Colors.black),
-                            todayDecoration: BoxDecoration(
-                              color: Colors.orangeAccent,
-                              shape: BoxShape.circle,
-                            ),
-                            selectedDecoration: BoxDecoration(
-                              color: Colors.orange,
-                              shape: BoxShape.circle,
-                            ),
-                            markerDecoration: BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                            outsideDaysVisible: false,
-                            weekendTextStyle: TextStyle(color: Colors.red),
-                            holidayTextStyle: TextStyle(color: Colors.red),
-                            cellMargin: EdgeInsets.all(6.0), // 행 하단의 줄을 제거하기 위해 셀 마진 설정
-                          ),
-                          headerStyle: HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                            titleTextStyle: TextStyle(fontSize: 20, color: Color.fromARGB(255, 255, 207, 102)),
-                            leftChevronIcon: Icon(Icons.chevron_left, color: Color.fromARGB(255, 255, 207, 102)),
-                            rightChevronIcon: Icon(Icons.chevron_right, color: Color.fromARGB(255, 255, 207, 102)),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                            ),
-                          ),
-                          daysOfWeekStyle: DaysOfWeekStyle(
-                            weekendStyle: TextStyle(color: Colors.red),
-                          ),
-                          calendarBuilders: CalendarBuilders(
-                            dowBuilder: (context, day) {
-                              if (day.weekday == DateTime.sunday) {
-                                return Center(
-                                  child: Text(
-                                    '일',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                );
-                              } else if (day.weekday == DateTime.saturday) {
-                                return Center(
-                                  child: Text(
-                                    '토',
-                                    style: TextStyle(color: Colors.blue),
-                                  ),
-                                );
-                              } else {
-                                return Center(
-                                  child: Text(
-                                    ['월', '화', '수', '목', '금'][day.weekday - 1],
-                                    style: TextStyle(color: Colors.black),
-                                  ),
-                                );
-                              }
-                            },
-                            defaultBuilder: (context, day, focusedDay) {
-                              return Container(
-                                margin: const EdgeInsets.all(6.0),
-                                child: Center(
-                                  child: Text(
-                                    '${day.day}',
-                                    style: TextStyle(color: Colors.black),
-                                  ),
-                                ),
-                              );
-                            },
-                            selectedBuilder: (context, date, events) {
-                              return Container(
-                                margin: const EdgeInsets.all(6.0),
-                                decoration: BoxDecoration(
-                                  color: Color.fromARGB(255, 255, 207, 102),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${date.day}',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              );
-                            },
-                            todayBuilder: (context, date, events) {
-                              return Container(
-                                margin: const EdgeInsets.all(6.0),
-                                decoration: BoxDecoration(
-                                  color: Colors.orangeAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${date.day}',
-                                    style: TextStyle(color: Colors.black),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.4),
+                        blurRadius: 2,
+                        spreadRadius: 1,
+                        offset: Offset(0, 0), // 모든 방향으로 균일한 그림자
                       ),
                     ],
                   ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      width: double.infinity,
+                      child: TableCalendar(
+                        focusedDay: _focusedDay,
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                        onDaySelected: (selectedDay, focusedDay) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => CalendarMainScreen()),
+                          );
+                        },
+                        eventLoader: _getEventsForDay,
+                        daysOfWeekHeight: 40.0,
+                        calendarStyle: CalendarStyle(
+                          todayTextStyle: TextStyle(color: Colors.white),
+                          todayDecoration: BoxDecoration(
+                            color: Colors.orangeAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          selectedDecoration: BoxDecoration(
+                            color: Colors.orangeAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          markerDecoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                          outsideDaysVisible: true,
+                          weekendTextStyle: TextStyle(color: Colors.red),
+                          cellMargin: EdgeInsets.symmetric(vertical: 14.0),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          titleTextFormatter: (date, locale) {
+                            return '${date.year}년 ${date.month}월';
+                          },
+                          titleTextStyle: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(255, 255, 207, 102),
+                          ),
+                          leftChevronIcon: Icon(Icons.chevron_left, size: 30, color: Color.fromARGB(255, 255, 207, 102)),
+                          rightChevronIcon: Icon(Icons.chevron_right, size: 30, color: Color.fromARGB(255, 255, 207, 102)),
+                        ),
+                        daysOfWeekStyle: DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          weekendStyle: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                        ),
+                        calendarBuilders: CalendarBuilders(
+                          dowBuilder: (context, day) {
+                            final days = ['월', '화', '수', '목', '금', '토', '일'];
+                            final text = days[day.weekday - 1];
+
+                            return Center(
+                              child: Text(
+                                text,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: day.weekday == DateTime.saturday
+                                      ? Colors.blue
+                                      : day.weekday == DateTime.sunday
+                                      ? Colors.red
+                                      : Colors.black,
+                                ),
+                              ),
+                            );
+                          },
+                          defaultBuilder: (context, day, focusedDay) {
+                            return Container(
+                              margin: const EdgeInsets.all(6.0),
+                              child: Center(
+                                child: Text(
+                                  '${day.day}',
+                                  style: TextStyle(
+                                    color: day.weekday == DateTime.saturday
+                                        ? Colors.blue
+                                        : day.weekday == DateTime.sunday
+                                        ? Colors.red
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
+              ),
+              SizedBox(height: 20),
+              ListView.builder(
+                shrinkWrap: true, // ListView의 크기를 내용에 맞게 조정
+                physics: NeverScrollableScrollPhysics(), // 내부 스크롤 비활성화
+                itemCount: _selectedEvents.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(_selectedEvents[index].title),
+                  );
+                },
               ),
             ],
           ),

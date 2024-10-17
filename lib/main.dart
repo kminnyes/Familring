@@ -43,6 +43,10 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Navigation Bar',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white, //앱 기본 배경색을 흰색으로 설정
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+        ),
         textTheme: TextTheme(
           bodyMedium: TextStyle(fontSize: fontSize), // `bodyMedium` 사용
           bodyLarge: TextStyle(fontSize: fontSize),
