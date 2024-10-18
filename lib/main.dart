@@ -13,10 +13,12 @@ import 'package:familring2/font_size_settings_screen.dart'; // 글씨 크기 변
 import 'mypage_screen.dart' as mypage; // 별칭 사용하여 중복 방지
 import 'package:familring2/edit_profile_screen.dart' as edit_profile;
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  await initializeDateFormatting('ko_KR', null);
 
   // 저장된 토큰이 있는지 확인
   String? token = await getToken();

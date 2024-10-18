@@ -97,7 +97,7 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade300,
+                    color: Color.fromARGB(255, 255, 186, 81),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
@@ -192,11 +192,11 @@ class _CalendarComponentScreenState extends State<CalendarComponentScreen> {
                         calendarStyle: CalendarStyle(
                           todayTextStyle: TextStyle(color: Colors.white),
                           todayDecoration: BoxDecoration(
-                            color: Colors.orangeAccent,
+                            color: Color.fromARGB(255, 255, 186, 81),
                             shape: BoxShape.circle,
                           ),
                           selectedDecoration: BoxDecoration(
-                            color: Colors.orangeAccent,
+                            color: Color.fromARGB(255, 255, 186, 81),
                             shape: BoxShape.circle,
                           ),
                           markerDecoration: BoxDecoration(
