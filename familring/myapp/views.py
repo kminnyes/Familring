@@ -304,5 +304,20 @@ class GenerateQuestionView(APIView):
             print(f"Error generating question: {e}")
             return JsonResponse({'error': str(e)})
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+# 회원탈퇴 API
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])  # 인증된 사용자만 접근 가능
+def delete_account(request):
+    user = request.user
+    user.delete()  # 사용자 계정 삭제
+    return Response(status=204)
+
 
 

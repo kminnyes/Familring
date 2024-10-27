@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import delete_account
 from .views import register, login, GenerateQuestionView
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -30,10 +31,5 @@ urlpatterns = [
     path('family/invitation/status/', check_invitation_status, name='check_invitation_status'),
     path('family/invitation/respond/', respond_to_invitation, name='respond_to_invitation'),
     path('generate_question/',GenerateQuestionView.as_view(), name='generate_question'),
+    path('delete_account/', delete_account, name='delete_account')
 ]
-
-
-
-
-
-
