@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 import 'dart:convert';
-import 'font_size_settings_screen.dart'; // 폰트 크기 설정 페이지 import
+import 'font_size_settings_screen.dart'; // 글씨 크기 설정 페이지 import
 import 'family_management_screen.dart';  // 가족 관리 페이지 import
+import 'welcome_screen.dart';  // 회원탈퇴 후 이동할 WelcomeScreen import
 
 class MyPageScreen extends StatefulWidget {
   @override
@@ -45,6 +46,67 @@ class _MyPageScreenState extends State<MyPageScreen> {
     } else {
       print('Failed to load profile data');
     }
+  }
+
+  // 회원탈퇴 API 호출
+  Future<void> _deleteAccount() async {
+    String? token = await getToken();
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.delete(
+      Uri.parse('http://127.0.0.1:8000/api/delete_account/'), // 회원탈퇴 API URL
+      headers: headers,
+    );
+
+    if (response.statusCode == 204) {
+      print('회원 탈퇴 성공');
+      // 탈퇴 성공 후 토큰 삭제 및 WelcomeScreen으로 이동
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      prefs.remove('auth_token'); // 저장된 토큰 삭제
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => WelcomeScreen()), // WelcomeScreen으로 이동
+            (route) => false, // 이전 페이지 스택 삭제
+      );
+    } else {
+      print('회원 탈퇴 실패');
+    }
+  }
+
+  // 회원탈퇴 확인 팝업
+  void _showDeleteAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("회원탈퇴"),
+          content: Text("정말 회원탈퇴를 하시겠습니까?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // 팝업 닫기
+              },
+              child: Text("아니오"),
+            ),
+            TextButton(
+              onPressed: () {
+                _deleteAccount(); // 회원탈퇴 API 호출
+                Navigator.of(context).pop(); // 팝업 닫기
+              },
+              child: Text("예"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -105,7 +167,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 );
               },
             ),
-            // 나머지 항목들...
+            ListTile(
+              title: Text('회원 탈퇴'),
+              trailing: Icon(Icons.delete),
+              onTap: () {
+                _showDeleteAccountDialog(); // 탈퇴 팝업 표시
+              },
+            ),
           ],
         ),
       ),
