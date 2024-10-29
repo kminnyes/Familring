@@ -7,6 +7,7 @@ import 'font_size_settings_screen.dart'; // 글씨 크기 설정 페이지 impor
 import 'family_management_screen.dart';  // 가족 관리 페이지 import
 import 'welcome_screen.dart';  // 회원탈퇴 후 이동할 WelcomeScreen import
 
+
 class MyPageScreen extends StatefulWidget {
   @override
   _MyPageScreenState createState() => _MyPageScreenState();
@@ -43,6 +44,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
       setState(() {
         nickname = data['nickname']; // 닉네임 업데이트
       });
+
+      // SharedPreferences에 닉네임 저장
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nickname', nickname);
+
+      // 닉네임이 SharedPreferences에 제대로 저장되었는지 확인하는 출력
+      print('Nickname saved to SharedPreferences: $nickname');
     } else {
       print('Failed to load profile data');
     }
@@ -144,6 +152,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   setState(() {
                     nickname = updatedNickname; // 닉네임 업데이트
                   });
+
+                  //업데이트 된 닉네임을 SharedPreferences에 저장
+                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('nickname', nickname);
                 }
               },
             ),

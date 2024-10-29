@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -31,6 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
         await saveToken(token);  // SharedPreferences에 토큰 저장 (import한 함수 사용)
 
+        // 로그인 성공 후 닉네임 초기화
+        await initializeNickname(token);
+
         setState(() {
           _errorMessage = '';
         });
@@ -50,6 +55,32 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = '로그인 중 오류가 발생했습니다. 다시 시도해주세요.';
       });
+    }
+  }
+
+  // 닉네임 초기화 함수
+  Future<void> initializeNickname(String token) async {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/profile/'), // Django 서버 URL
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      String nickname = data['nickname'];
+
+      // 닉네임을 SharedPreferences에 저장 --> 다른 화면에서도 닉네임 정보 복사해와 쓸 수 있도록 -> DB까지 가면 시간이 너무 오래걸림
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nickname', nickname);
+
+      print('Nickname saved to SharedPreferences: $nickname');
+    } else {
+      print('Failed to load nickname from server');
     }
   }
 
