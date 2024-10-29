@@ -1,4 +1,6 @@
+import 'package:familring2/token_util.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -16,6 +18,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   late DateTime _selectedDay;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
+  String nickname = '';//닉네임 저장
 
   @override
   void initState() {
@@ -23,7 +26,19 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
     _fetchEvents();
+    _loadNicknameFromSharedPreferences();//닉네임 로드 함수 호출
   }
+
+  Future<void> _loadNicknameFromSharedPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      nickname = prefs.getString('nickname') ?? '';
+
+      // 닉네임이 제대로 불러와졌는지 확인하는 출력
+      print('Nickname loaded from SharedPreferences: $nickname');
+    });
+  }
+
 
   List<Event> _getEventsForDay(DateTime day) {
     final events = _events[DateTime(day.year, day.month, day.day)] ?? [];
@@ -70,7 +85,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
 
   Future<void> _addEventToDatabase(String title, String content, DateTime date) async {
-    final url = 'http://your-django-server-url/add-event/';
+    final url = 'http://10.0.2.2:8000/api/add-event/';
 
     final response = await http.post(
       Uri.parse(url),
@@ -488,17 +503,84 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
               child: ListView.builder(
                 itemCount: _selectedEvents.length,
                 itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(_selectedEvents[index].title),
+                  final event = _selectedEvents[index];
+                  final isFamilyEvent = event.eventType == '가족일정';
+                  final displayName = isFamilyEvent ? '우리 가족' : nickname;
+                  final suffix = isFamilyEvent ? '은' : '님은';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Color.fromARGB(255, 255, 186, 81), width: 1.5),
+                        borderRadius: BorderRadius.circular(12.0), // 테두리 끝 둥글게 설정
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                      alignment: Alignment.center, // 텍스트 가운데 정렬
+                      child: RichText(
+                        textAlign: TextAlign.center, // 텍스트 중앙 정렬
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: displayName,
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold, // displayName만 굵게 설정
+                                color: Colors.black,
+                              ),
+                            ),
+                            TextSpan(
+                              text: " $suffix 오늘 ",
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.normal, // 기본 글씨
+                                color: Colors.black,
+                              ),
+                            ),
+                            TextSpan(
+                              text: event.title,
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(255, 255, 186, 81), // 주황색 텍스트
+                              ),
+                            ),
+                            TextSpan(
+                              text: " 일정",
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(255, 255, 186, 81), // 주황색 텍스트
+                              ),
+                            ),
+                            TextSpan(
+                              text: "이 있어요",
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.normal,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
             ),
+
+
+
+
+
+
           ],
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(80.0),
+        padding: const EdgeInsets.only(left: 60.0, right: 60.0, bottom: 60.0), // 왼쪽, 오른쪽, 아래쪽 패딩 설정
         child: ElevatedButton(
           onPressed: _showAddEventDialog,
           style: ElevatedButton.styleFrom(
@@ -506,8 +588,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30.0),
             ),
-            padding: EdgeInsets.symmetric(vertical: 16),
-            minimumSize: Size(double.infinity, 60),
+            padding: EdgeInsets.symmetric(vertical: 16), // 버튼 내부 패딩은 그대로 유지
+            minimumSize: Size(double.infinity, 60), // 버튼 크기 유지
           ),
           child: Text(
             '일정 생성하기',
