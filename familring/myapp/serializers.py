@@ -20,11 +20,11 @@ class FamilySerializer(serializers.ModelSerializer):
         fields = ['family_id', 'family_name', 'date', 'user']
 
 class FamilyListSerializer(serializers.ModelSerializer):
-    family = FamilySerializer()
+    family_name = serializers.CharField(source='family.family_name', read_only=True)  # Family 모델의 family_name 참조
 
     class Meta:
         model = FamilyList
-        fields = ['id', 'family', 'user']
+        fields = ['id', 'family', 'user', 'family_name']
 
 class FamilyRequestSerializer(serializers.ModelSerializer):
     family = FamilySerializer(read_only=True)  # Family 정보를 포함

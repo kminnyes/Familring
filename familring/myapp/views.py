@@ -61,10 +61,10 @@ def login(request):
     if user is not None:
         # JWT 토큰 생성
         refresh = RefreshToken.for_user(user)
-
         # 사용자에 연결된 family 정보 가져오기
-        family = Family.objects.filter(user=user).first()
+        family = Family.objects.filter(user_id=user).first()  # `user_id`로 수정
         family_id = family.family_id if family else None
+        
 
         return Response({
             'refresh': str(refresh),
@@ -76,23 +76,23 @@ def login(request):
     else:
         return Response({'error': 'Invalid username or password'}, status=status.HTTP_400_BAD_REQUEST)
 
-
 # 버킷리스트 기능
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # 인증된 사용자만 접근 가능
 def get_family_bucketlist(request):
     user = request.user
-    family = Family.objects.filter(user=user).first()
-    if not family:
+    family_list_entry = FamilyList.objects.filter(user=user).first()
+
+    if not family_list_entry:
         return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
 
-    bucketlist = BucketList.objects.filter(family=family)
-    serializer = BucketListSerializer(bucketlist, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK,content_type='application/json; charset=utf-8')
+    family = family_list_entry.family  # FamilyList의 family 필드를 통해 Family 객체 가져오기
+    bucketlist = BucketList.objects.filter(family_id=family)  # Family 객체를 사용하여 BucketList 쿼리
 
+    serializer = BucketListSerializer(bucketlist, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK, content_type='application/json; charset=utf-8')
 # 버킷리스트 추가하기
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])  # JWT 토큰으로 인증된 사용자만 접근 가능
@@ -166,8 +166,28 @@ def get_all_users(request):
         content_type='application/json; charset=utf-8'
     )
 
-# 사용자 검색 기능
+# 가족 생성 API
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_family(request):
+    family_name = request.data.get('family_name')
+    if not family_name:
+        return Response({"error": "Family name is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 새로운 가족 생성
+    family = Family.objects.create(
+        family_name=family_name,
+        user=request.user
+    )
+
+    # 첫 번째 사용자를 가족 목록에 추가
+    FamilyList.objects.create(family=family, user=request.user)
+
+    return Response({"family_id": family.family_id, "family_name": family.family_name}, status=status.HTTP_201_CREATED)
+
+# 사용자 검색 기능 (로그인한 사용자와 이미 가족 구성원인 사용자 제외)
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def search_user(request):
     username = request.GET.get('username')
     if not username:
@@ -177,20 +197,20 @@ def search_user(request):
             content_type='application/json; charset=utf-8'
         )
 
-    try:
-        user = User.objects.get(username=username)
-        serializer = UserSerializer(user)
-        return Response(
-            serializer.data,
-            status=200,
-            content_type='application/json; charset=utf-8'
-        )
-    except User.DoesNotExist:
-        return Response(
-            {'error': 'User not found'},
-            status=404,
-            content_type='application/json; charset=utf-8'
-        )
+    # 검색된 사용자를 가져오되, 로그인한 사용자 및 이미 가족 구성원인 사용자를 제외
+    users = User.objects.exclude(id=request.user.id)
+
+    # 로그인한 사용자가 속한 가족 구성원을 가져오기
+    family_members = FamilyList.objects.filter(family__user_id=request.user).values_list('user_id', flat=True)
+    users = users.exclude(id__in=family_members)
+
+    # 검색어와 일치하는 사용자 필터링
+    users = users.filter(username__icontains=username)
+
+    # 시리얼라이즈 후 응답
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=200)
+
 
 # 가족 초대 요청 생성
 @api_view(['POST'])
@@ -240,7 +260,7 @@ def pending_family_request(request):
     """
     try:
         # 현재 사용자가 받은 초대 요청 중 진행중인 요청 가져오기
-        pending_requests = FamilyRequest.objects.filter(to_user=request.user, progress='진행중')
+        pending_requests = FamilyRequest.objects.filter(to_user_id=request.user, progress='진행중')
 
         if not pending_requests.exists():
             print("????")
@@ -319,5 +339,23 @@ def delete_account(request):
     user.delete()  # 사용자 계정 삭제
     return Response(status=204)
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    refresh_token = request.data.get("refresh")
+    if not refresh_token:
+        return Response({"error": "Refresh token not provided"}, status=400)
+
+    try:
+        token = RefreshToken(refresh_token)
+        token.blacklist()  # refresh 토큰을 블랙리스트에 등록하여 무효화
+        return Response({"message": "로그아웃 성공"}, status=205)
+    except Exception as e:
+        print(f"로그아웃 실패 - 예외 발생: {e}")
+        return Response({"error": f"로그아웃 실패: {str(e)}"}, status=400)
 

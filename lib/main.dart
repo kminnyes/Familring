@@ -20,7 +20,7 @@ void main() async {
   await initializeDateFormatting('ko_KR', null);
 
   // 저장된 토큰이 있는지 확인
-  String? token = await getToken();
+  String? token = await getAccessToken();
 
   // 저장된 글씨 크기 가져오기
   double savedFontSize = await getSavedFontSize();

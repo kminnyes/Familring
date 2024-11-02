@@ -80,7 +80,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 # Bucket List 모델
 class BucketList(models.Model):
     bucket_id = models.AutoField(primary_key=True, default=1)
-    family_id = models.ForeignKey(Family, on_delete=models.CASCADE)
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name="bucket_lists") #user 버킷 입력시 해당 항목은 null
+    #user 추가하기
     bucket_title = models.CharField(max_length=255)
     is_completed = models.BooleanField(default=False)
 

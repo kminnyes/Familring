@@ -23,7 +23,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _loadProfileData() async {
-    String? token = await getToken();
+    String? token = await getAccessToken();
     if (token == null) {
       print('No token found!');
       return;
@@ -58,7 +58,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   // 회원탈퇴 API 호출
   Future<void> _deleteAccount() async {
-    String? token = await getToken();
+    String? token = await getAccessToken();
     if (token == null) {
       print('No token found!');
       return;
@@ -117,6 +117,44 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? refreshToken = prefs.getString('refresh_token');
+    String? accessToken = prefs.getString('access_token');
+
+    if (refreshToken == null || accessToken == null) {
+      print('No refresh or access token found!');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $accessToken', // Authorization 헤더에 access_token 추가
+    };
+
+    final body = jsonEncode({"refresh": refreshToken});
+
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/logout/'),
+      headers: headers,
+      body: body,
+    );
+
+    if (response.statusCode == 205) {
+      print('로그아웃 성공');
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => WelcomeScreen()),
+            (route) => false,
+      );
+    } else {
+      print('로그아웃 실패');
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,7 +191,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     nickname = updatedNickname; // 닉네임 업데이트
                   });
 
-                  //업데이트 된 닉네임을 SharedPreferences에 저장
+                  //업데이트된 닉네임을 SharedPreferences에 저장
                   SharedPreferences prefs = await SharedPreferences.getInstance();
                   await prefs.setString('nickname', nickname);
                 }
@@ -170,12 +208,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
               },
             ),
             ListTile(
-              title: Text('가족 추가하기'),  // 가족 추가하기 메뉴
+              title: Text('가족 추가하기'),
               trailing: Icon(Icons.arrow_forward_ios),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => FamilyManagementScreen()), // 가족 관리 페이지로 이동
+                  MaterialPageRoute(builder: (context) => FamilyManagementScreen()),
                 );
               },
             ),
@@ -186,6 +224,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 _showDeleteAccountDialog(); // 탈퇴 팝업 표시
               },
             ),
+            ListTile(
+              title: Text('로그아웃'),
+              trailing: Icon(Icons.logout),
+              onTap: () {
+                _logout(); // 로그아웃 함수 호출
+              },
+            ),
           ],
         ),
       ),
@@ -193,6 +238,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 }
 
+// 프로필 수정 화면
 class EditProfileScreen extends StatefulWidget {
   final String nickname;
 
@@ -212,7 +258,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _updateProfile() async {
-    String? token = await getToken();
+    String? token = await getAccessToken();
     if (token == null) {
       print('No token found');
       return;

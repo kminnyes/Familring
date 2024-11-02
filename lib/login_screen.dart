@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 class LoginScreen extends StatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -22,19 +21,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       var url = Uri.parse('http://127.0.0.1:8000/api/login/');
-      var response = await http.post(url, body: {
-        'username': username,
-        'password': password,
-      });
+      var response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
-        String token = responseData['access'];  // JWT 토큰 추출
+        String accessToken = responseData['access'];  // access 토큰 추출
+        String refreshToken = responseData['refresh']; // refresh 토큰 추출
 
-        await saveToken(token);  // SharedPreferences에 토큰 저장 (import한 함수 사용)
+        // SharedPreferences에 access와 refresh 토큰 모두 저장
+        await saveTokens(accessToken, refreshToken);
 
         // 로그인 성공 후 닉네임 초기화
-        await initializeNickname(token);
+        await initializeNickname(accessToken);
 
         setState(() {
           _errorMessage = '';
@@ -58,6 +63,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // 토큰 저장 함수
+  Future<void> saveTokens(String accessToken, String refreshToken) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('access_token', accessToken);
+    await prefs.setString('refresh_token', refreshToken);
+  }
+
   // 닉네임 초기화 함수
   Future<void> initializeNickname(String token) async {
     final headers = {
@@ -74,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       String nickname = data['nickname'];
 
-      // 닉네임을 SharedPreferences에 저장 --> 다른 화면에서도 닉네임 정보 복사해와 쓸 수 있도록 -> DB까지 가면 시간이 너무 오래걸림
+      // 닉네임을 SharedPreferences에 저장하여 다른 화면에서도 사용
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('nickname', nickname);
 

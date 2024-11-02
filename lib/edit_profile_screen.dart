@@ -26,7 +26,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _updateProfile() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    String? token = await getToken();
+    String? token = await getAccessToken();
 
     if (token == null) {
       print('No token found??');
