@@ -76,63 +76,104 @@ def login(request):
     else:
         return Response({'error': 'Invalid username or password'}, status=status.HTTP_400_BAD_REQUEST)
 
-# 버킷리스트 기능
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import permission_classes
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Family, FamilyList, BucketList
+from .serializers import BucketListSerializer
+from django.shortcuts import get_object_or_404
+
+# 가족 및 개인 버킷리스트 가져오기
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # 인증된 사용자만 접근 가능
-def get_family_bucketlist(request):
+@permission_classes([IsAuthenticated])
+def get_bucketlists(request):
     user = request.user
     family_list_entry = FamilyList.objects.filter(user=user).first()
 
-    if not family_list_entry:
-        return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
+    # 개인 버킷리스트
+    personal_bucketlist = BucketList.objects.filter(user=user, family__isnull=True)
 
-    family = family_list_entry.family  # FamilyList의 family 필드를 통해 Family 객체 가져오기
-    bucketlist = BucketList.objects.filter(family_id=family)  # Family 객체를 사용하여 BucketList 쿼리
+    # 가족 버킷리스트
+    family_bucketlist = []
+    if family_list_entry:
+        family = family_list_entry.family
+        family_bucketlist = BucketList.objects.filter(family=family, user__isnull=True)
 
-    serializer = BucketListSerializer(bucketlist, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK, content_type='application/json; charset=utf-8')
+    personal_serializer = BucketListSerializer(personal_bucketlist, many=True)
+    family_serializer = BucketListSerializer(family_bucketlist, many=True)
+
+    return Response(
+        {
+            'personal_bucket_list': personal_serializer.data,
+            'family_bucket_list': family_serializer.data
+        },
+        status=status.HTTP_200_OK,
+        content_type='application/json; charset=utf-8'
+    )
+
 # 버킷리스트 추가하기
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])  # JWT 토큰으로 인증된 사용자만 접근 가능
+@permission_classes([IsAuthenticated])
 def add_bucketlist(request):
-    # 토큰을 통해 인증된 사용자 정보 가져오기
     user = request.user
+    is_family_bucket = request.data.get('is_family_bucket', False)
 
-    # user와 연결된 family 정보 가져오기
-    family = get_object_or_404(Family, user=user)
+    if is_family_bucket:
+        # 가족 버킷리스트로 추가
+        family_list_entry = FamilyList.objects.filter(user=user).first()
+        if not family_list_entry:
+            return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # 요청 데이터에서 버킷리스트 정보 생성
-    data = {
-        'family': family.family_id,  # family_id 설정
-        'bucket_title': request.data['bucket_title'],
-        'bucket_content': request.data.get('bucket_content', ''),
-        'is_completed': False,  # 기본값으로 완료되지 않은 상태
-    }
+        family = family_list_entry.family
+        data = {
+            'family': family.family_id,
+            'bucket_title': request.data['bucket_title'],
+            'is_completed': False,
+        }
+    else:
+        # 개인 버킷리스트로 추가
+        data = {
+            'user': user.id,
+            'bucket_title': request.data['bucket_title'],
+            'is_completed': False,
+        }
+
     serializer = BucketListSerializer(data=data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from .models import BucketList
+from django.shortcuts import get_object_or_404
+from rest_framework import status
 
 # 버킷리스트 완료 처리
 @api_view(['PUT'])
-@permission_classes([IsAuthenticated])  # JWT 토큰으로 인증된 사용자만 접근 가능
+@permission_classes([IsAuthenticated])
 def complete_bucketlist(request, bucket_id):
-    # 토큰을 통해 인증된 사용자 정보 가져오기
     user = request.user
-    print(bucket_id)
-    # user와 연결된 family 정보 가져오기
-    family = get_object_or_404(Family, user=user)
+    is_family_bucket = request.data.get('is_family_bucket', False)
 
-    # bucket_id에 해당하는 버킷리스트 항목을 완료 처리
-    bucketlist = get_object_or_404(BucketList, id=bucket_id, family=family)
+    if is_family_bucket:
+        # 가족 버킷리스트 완료 처리
+        family_list_entry = FamilyList.objects.filter(user=user).first()
+        if not family_list_entry:
+            return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
+
+        family = family_list_entry.family
+        bucketlist = get_object_or_404(BucketList, id=bucket_id, family=family, user__isnull=True)
+    else:
+        # 개인 버킷리스트 완료 처리
+        bucketlist = get_object_or_404(BucketList, id=bucket_id, user=user, family__isnull=True)
+
     bucketlist.is_completed = True
     bucketlist.save()
     return Response({"message": "버킷리스트가 완료되었습니다."}, status=status.HTTP_200_OK)
-
 
 from rest_framework import status
 from django.shortcuts import get_object_or_404

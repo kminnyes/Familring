@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 # Family 모델
 class Family(models.Model):
@@ -79,14 +80,37 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 # Bucket List 모델
 class BucketList(models.Model):
-    bucket_id = models.AutoField(primary_key=True, default=1)
-    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name="bucket_lists") #user 버킷 입력시 해당 항목은 null
-    #user 추가하기
+    bucket_id = models.AutoField(primary_key=True)
+    family = models.ForeignKey(
+        Family,
+        on_delete=models.CASCADE,
+        related_name="bucket_lists",
+        null=True,  # 개인 버킷리스트일 경우 family 필드는 null 허용
+        blank=True
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_bucket_lists",
+        null=True,  # 가족 버킷리스트일 경우 user 필드는 null 허용
+        blank=True
+    )
     bucket_title = models.CharField(max_length=255)
     is_completed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.bucket_title
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                        models.Q(family__isnull=False, user__isnull=True) |
+                        models.Q(family__isnull=True, user__isnull=False)
+                ),
+                name="only_family_or_personal_bucketlist"
+            )
+        ]
 
 #오늘의 질문 모델 정의
 class DailyQuestion(models.Model):

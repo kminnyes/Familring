@@ -4,7 +4,7 @@ from .views import register, login, GenerateQuestionView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
-    register, login, get_family_bucketlist, add_bucketlist, complete_bucketlist,
+    register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
     get_profile, update_profile, send_family_invitation, check_invitation_status,
     respond_to_invitation, search_user, get_all_users, pending_family_request, get_csrf_token,
 create_family
@@ -18,15 +18,15 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # 버킷리스트
-    path('bucket/', get_family_bucketlist, name='get_family_bucketlist'),
+    path('bucket/', get_bucketlists, name='get_bucketlists'),
     path('bucket/add/', add_bucketlist, name='add_bucketlist'),
     path('bucket/complete/<int:bucket_id>/', complete_bucketlist, name='complete_bucketlist'),
 
+    #프로필
     path('profile/', get_profile, name='get_profile'),
     path('profile/update/', update_profile, name='update_profile'),
 
-
-    #버킷리스트 관련 url
+    #가족 관련 url
     path('users/', get_all_users, name='get_all_users'),
     path('family/pending/', pending_family_request, name='pending_family_request'),
     path('user/search/', search_user, name='search_user'),
