@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 //import 'package:openai_client/openai_client.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:async'; //타이머 패키지
+
 
 class TodayQuestion extends StatefulWidget {
   @override
@@ -12,15 +14,36 @@ class TodayQuestion extends StatefulWidget {
 class _TodayQuestionState extends State<TodayQuestion> {
   String question = "...Loading?"; // 질문
   String answer = ""; // 답변
+  Timer? _timer;
+  Duration interval = Duration(minutes:3);
 
   @override
   void initState() {
     super.initState();
     _openAi();
+    _startQuestionGeneration();//질문 생성 시작
+  }
+
+  // 주기적으로 질문을 생성하는 함수
+  void _startQuestionGeneration() {
+    // 처음 질문을 즉시 생성
+    _openAi();
+
+    // 설정한 주기마다 질문을 생성
+    _timer = Timer.periodic(interval, (Timer timer) {
+      _openAi();
+
+    }) as Timer?;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // 위젯이 제거될 때 타이머를 중지
+    super.dispose();
   }
 
 
-  Future<void> _openAi() async {
+Future<void> _openAi() async {
     final apiKey = dotenv.env['OPENAI_API_KEY']!;
     final response = await http.post(
       Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -31,7 +54,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
       body: jsonEncode({
         'model': 'gpt-3.5-turbo',
         'messages': [
-          {'role': 'system', 'content': 'You are a helpful assistant. Ask your users short, thought-provoking questions in korean'},
+          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in korean. just create one question'},
           // {'role': 'user', 'content': 'What is Seoul?'}
         ],
         'max_tokens': 100,
@@ -42,14 +65,34 @@ class _TodayQuestionState extends State<TodayQuestion> {
       var data = jsonDecode(utf8.decode(response.bodyBytes)); //한국어로 변경
       setState(() {
         question = data['choices'][0]['message']['content'];
+        print('API sucess: $question'); // 로그 추가
       });
+      await _saveQuestionToDB(question);
     } else {
       setState(() {
         question = 'Error: ${response.reasonPhrase}';
+        print('API fail: ${response.reasonPhrase}'); // 로그 추가
       });
     }
   }
 
+
+  Future<void> _saveQuestionToDB(String question) async {
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/save_question/'), // Django 서버 URL로 변경
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'question': question}),
+    );
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      print('Question saved successfully with ID: ${data['id']}');
+    } else {
+      print('Failed to save question: ${response.reasonPhrase}');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +144,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
                 // 예: 서버로 전송 또는 로컬 저장
                 print('Question: $question');
                 print('Answer: $answer');
+
 
                 // 알림을 표시하고 TodayQuestion과 QuestionNotification 화면을 pop하여 HomeScreen으로 전환
                 showDialog(
