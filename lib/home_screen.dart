@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:familring2/token_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'question_notification.dart'; // QuestionNotification 파일 임포트
+import 'question_notification.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -13,11 +13,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _familyBucketList = [];
   List<dynamic> _personalBucketList = [];
+  List<Map<String, String>> _scheduleList = [
+    {"name": "아빠", "task": "친구들과 골프 약속", "img": "images/familring_user_icon1.png"},
+    {"name": "엄마", "task": "냉장고 정리 하기", "img": "images/familring_user_icon3.png"},
+  ];
 
   @override
   void initState() {
     super.initState();
-    // _checkFirstVisit();
     Future.delayed(Duration(seconds: 1), () {
       Navigator.push(
         context,
@@ -27,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchBucketLists();
   }
 
-  // access_token을 가져와 헤더에 추가하는 함수
   Future<Map<String, String>> _getHeaders() async {
     String? token = await getAccessToken();
     return {
@@ -36,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
-  // 가족 및 개인 버킷리스트 가져오기
   void _fetchBucketLists() async {
     try {
       Map<String, String> headers = await _getHeaders();
@@ -145,6 +146,62 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                       },
                     ),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 20),
+
+            // Schedule List Section
+            Text(
+              "오늘의 일정",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            ListView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: _scheduleList.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.0),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0), // 왼쪽 간격 추가
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: 50, // 고정 너비
+                              height: 50, // 고정 높이
+                              child: Image.asset(
+                                _scheduleList[index]["img"]!,
+                                fit: BoxFit.cover, // 이미지가 고정된 크기에 맞추도록 설정
+                              ),
+                            ),
+                            Transform.translate(
+                              offset: Offset(0, -8), // 이미지와 텍스트 간격 줄이기
+                              child: Text(
+                                _scheduleList[index]["name"]!,
+                                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 16), // 이미지와 텍스트 사이 간격 조정
+                      Expanded(
+                        child: Text(
+                          _scheduleList[index]["task"]!,
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },

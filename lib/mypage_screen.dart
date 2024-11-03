@@ -167,9 +167,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(height: 20),
-            CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage('images/icon4.svg'), // 프로필 이미지
+            Image.asset('images/familring_user_icon1.png' ,
+              width: 100, // 이미지 너비
+              height: 100, // 이미지 높이
+              fit: BoxFit.contain,
             ),
             SizedBox(height: 10),
             Text(
