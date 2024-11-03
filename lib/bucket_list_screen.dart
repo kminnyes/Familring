@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http; // 토큰 유틸리티 함수 임포트
+import 'package:http/http.dart' as http;
+import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 
 class BucketListScreen extends StatefulWidget {
   @override
@@ -16,17 +17,19 @@ class _BucketListScreenState extends State<BucketListScreen> {
     _fetchBucketList();
   }
 
-  // 토큰을 가져와서 헤더에 추가하는 함수
+  // access_token을 가져와 헤더에 추가하는 함수
   Future<Map<String, String>> _getHeaders() async {
+    String? token = await getAccessToken(); // access_token 가져오기
     return {
       'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer $token', // 헤더에 access_token 추가
     };
   }
 
   // 버킷리스트 가져오기
   void _fetchBucketList() async {
     try {
-      Map<String, String> headers = await _getHeaders();  // 헤더에 토큰 추가
+      Map<String, String> headers = await _getHeaders();
       final response = await http.get(
         Uri.parse('http://127.0.0.1:8000/api/bucket/'),
         headers: headers,
@@ -46,7 +49,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
   // 버킷리스트 추가 API 호출
   void _addBucketItem(String item) async {
     try {
-      Map<String, String> headers = await _getHeaders();  // 헤더에 토큰 추가
+      Map<String, String> headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('http://127.0.0.1:8000/api/bucket/add/'),
         headers: headers,
@@ -69,13 +72,13 @@ class _BucketListScreenState extends State<BucketListScreen> {
   // 버킷리스트 완료 API 호출
   void _completeBucketItem(int bucketId) async {
     try {
-      Map<String, String> headers = await _getHeaders();  // 헤더에 토큰 추가
+      Map<String, String> headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('http://127.0.0.1:8000/api/bucket/complete/$bucketId/'),
         headers: headers,
       );
       if (response.statusCode == 200) {
-        _fetchBucketList(); // 성공적으로 완료된 후, 목록을 다시 로드
+        _fetchBucketList();
       } else {
         throw Exception('Failed to complete bucket list');
       }
@@ -124,27 +127,27 @@ class _BucketListScreenState extends State<BucketListScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: Padding(
-          padding: const EdgeInsets.only(left: 18.0, top: 10.0), // 위쪽 여백 추가
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0),
           child: SizedBox(
-            width: 42, // 이미지 크기 조정
+            width: 42,
             height: 42,
             child: Image.asset(
-              'images/appbaricon.png', // 이미지 파일 경로
+              'images/appbaricon.png',
               fit: BoxFit.contain,
             ),
           ),
         ),
       ),
       body: _bucketList.isEmpty
-          ? Center(child: CircularProgressIndicator()) // 데이터가 로드될 때 로딩 인디케이터 표시
-          : SingleChildScrollView(  // 넘치는 경우 스크롤 가능하게 처리
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               ListView.builder(
-                physics: NeverScrollableScrollPhysics(), // 내부에서 스크롤 방지
-                shrinkWrap: true, // 부모의 크기에 맞춤
+                physics: NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
                 itemCount: _bucketList.length,
                 itemBuilder: (context, index) {
                   return Card(

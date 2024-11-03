@@ -1,15 +1,29 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 토큰 저장
-Future<void> saveToken(String token) async {
+// access_token과 refresh_token 저장
+Future<void> saveTokens(String accessToken, String refreshToken) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  await prefs.setString('auth_token', token);
+  await prefs.setString('access_token', accessToken);
+  await prefs.setString('refresh_token', refreshToken);
 }
 
-// 저장된 토큰 불러오기
-Future<String?> getToken() async {
+// access_token 불러오기
+Future<String?> getAccessToken() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  return prefs.getString('auth_token');
+  return prefs.getString('access_token');
+}
+
+// refresh_token 불러오기
+Future<String?> getRefreshToken() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('refresh_token');
+}
+
+// 저장된 토큰 삭제 (로그아웃 또는 회원탈퇴 시 사용)
+Future<void> clearTokens() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.remove('access_token');
+  await prefs.remove('refresh_token');
 }
 
 // 글씨 크기를 SharedPreferences에 저장

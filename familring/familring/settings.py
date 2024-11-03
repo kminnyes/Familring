@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',  # 블랙리스트 기능 활성화
     'myapp',
 ]
 
@@ -83,6 +84,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'BLACKLIST_AFTER_ROTATION': True,  # 토큰이 갱신된 후 기존 토큰을 블랙리스트에 추가
+    'ROTATE_REFRESH_TOKENS': True,     # 리프레시 토큰이 사용될 때마다 갱신
 }
 
 MIDDLEWARE = [
