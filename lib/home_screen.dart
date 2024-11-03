@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:familring2/token_util.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'question_notification.dart'; // QuestionNotification 파일 임포트
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -15,6 +17,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // _checkFirstVisit();
+    Future.delayed(Duration(seconds: 1), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => QuestionNotification()),
+      );
+    });
     _fetchBucketLists();
   }
 

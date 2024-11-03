@@ -169,7 +169,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
             SizedBox(height: 20),
             CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('images/mypage.png'), // 프로필 이미지
+              backgroundImage: AssetImage('images/icon4.svg'), // 프로필 이미지
             ),
             SizedBox(height: 10),
             Text(

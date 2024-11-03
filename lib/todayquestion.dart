@@ -102,7 +102,7 @@ Future<void> _openAi() async {
         backgroundColor: Colors.white,
         elevation: 0, // 앱바의 그림자를 제거
         iconTheme: IconThemeData(
-          color: Colors.orange, // 앱바 아이콘 색상
+          color: Colors.black, // 앱바 아이콘 색상
         ),
       ),
       backgroundColor: Colors.white,
@@ -133,7 +133,7 @@ Future<void> _openAi() async {
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Colors.orange),
+                  borderSide: BorderSide(color: Color.fromARGB(255, 255, 207, 102)),
                 ),
               ),
             ),
@@ -167,10 +167,10 @@ Future<void> _openAi() async {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange, // 버튼 색상
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                backgroundColor: Color.fromARGB(255, 255, 207, 102), // 버튼 색상
+                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               child: Text(

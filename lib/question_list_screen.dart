@@ -9,8 +9,6 @@ class QuestionListScreen extends StatefulWidget {
 class _QuestionListScreenState extends State<QuestionListScreen> {
   List<Map<String, String>> questionsAndAnswers = [
     {'question': '가장 최근에 읽은 책은?', 'answer': ''},
-    {'question': '가장 좋아하는 과일은?', 'answer': ''},
-    {'question': '가장 여행 가고 싶은 나라는?', 'answer': ''},
   ];
 
   void addQuestionAnswerPair(String question, String answer) {
@@ -23,8 +21,19 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Familring List'),
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18.0, top: 10.0),
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Image.asset(
+              'images/appbaricon.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
