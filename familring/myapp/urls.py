@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import delete_account, logout_view
+from .views import delete_account, logout_view, add_event
 # from .views import register, login, SaveQuestionView
 from rest_framework_simplejwt.views import TokenRefreshView
+from . import views
 
 from .views import (
     register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
@@ -39,7 +40,9 @@ urlpatterns = [
     # path('api/generate_question/', GenerateQuestionView.as_view(), name='generate_question'),
     path('save_question/', save_question, name='save_question'),
 
-    path('generate_question/',GenerateQuestionView.as_view(), name='generate_question'),
+    #캘린더
+    path('add-event/', add_event, name='add_event'),
+    path('get-family-events/', views.get_family_events, name='get_family_events'),
 
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),
