@@ -277,32 +277,24 @@ def respond_to_invitation(request):
     return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
+import json
 #오늘의 질문 (gpt)
 import logging
 logger = logging.getLogger(__name__)
-
+from django.views.decorators.csrf import csrf_exempt
 # OpenAI API Key 설정
 openai.api_key = 'OPENAI_API_KEY'
+@csrf_exempt
+def save_question(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        question_text = data.get('question', '')
 
-class GenerateQuestionView(APIView):
-    def get(self, request, *args, **kwargs):
-        try:
-            # 매번 새로운 질문을 생성
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "Please generate a random daily question."}]
-            )
-            question = response['choices'][0]['message']['content'].strip()
+        # 데이터베이스에 질문 저장
+        question = DailyQuestion.objects.create(question=question_text)
+        return JsonResponse({'message': 'Question saved successfully!', 'id': question.id})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
-            # 질문을 데이터베이스에 저장
-            DailyQuestion.objects.create(question=question)
-            return JsonResponse({'question': question})
-
-        except Exception as e:
-            # 에러 로그 출력
-            print(f"Error generating question: {e}")
-            return JsonResponse({'error': str(e)})
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
