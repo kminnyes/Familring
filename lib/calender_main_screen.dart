@@ -18,7 +18,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   late DateTime _selectedDay;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
-  String nickname = '';//닉네임 저장
+  String nickname = ''; // 닉네임 저장
 
   @override
   void initState() {
@@ -26,7 +26,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
     _fetchEvents();
-    _loadNicknameFromSharedPreferences();//닉네임 로드 함수 호출
+    _loadNicknameFromSharedPreferences(); // 닉네임 로드 함수 호출
   }
 
   Future<void> _loadNicknameFromSharedPreferences() async {
@@ -39,12 +39,22 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     });
   }
 
-
   List<Event> _getEventsForDay(DateTime day) {
-    final events = _events[DateTime(day.year, day.month, day.day)] ?? [];
-    print("날짜: $day, 이벤트: $events");  // 해당 날짜의 이벤트 확인
+    final localDay = DateTime(day.year, day.month, day.day);
+    List<Event> events = [];
+
+    _events.forEach((eventDate, eventList) {
+      eventList.forEach((event) {
+        if (!localDay.isBefore(event.startDate) && !localDay.isAfter(event.endDate)) {
+          events.add(event);
+        }
+      });
+    });
+
+    print("날짜: $localDay, 이벤트: $events");
     return events;
   }
+
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (!isSameDay(_selectedDay, selectedDay)) {
@@ -52,29 +62,38 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
         _selectedEvents = _getEventsForDay(selectedDay);
+        print("Selected events on $_selectedDay: $_selectedEvents");  // 확인용 출력
       });
     }
   }
 
-  void _addEvent(DateTime startDate, DateTime endDate, String title, String content, String eventType) {
+  void _addEvent(DateTime startDate, DateTime endDate, String content, String eventType) {
     DateTime eventDate = startDate;
 
-    // 시작일부터 종료일까지 반복하며 모든 날짜에 이벤트 추가
+    // 시작일부터 종료일까지 반복하며 모든 날짜에 이벤트 추가 (로컬에만 추가)
     while (!eventDate.isAfter(endDate)) { // 종료일을 포함하여 반복
       DateTime eventDay = DateTime(eventDate.year, eventDate.month, eventDate.day);
 
-      if (_events[eventDay] != null) {
-        _events[eventDay]!.add(Event(title, eventType));
-      } else {
-        _events[eventDay] = [Event(title, eventType)];
-      }
+      Event newEvent = Event(
+        eventType,
+        content,
+        startDate,
+        endDate,
+        nickname: eventType == '개인일정' ? nickname : null, // 개인일정일 때만 닉네임 포함
+      );
 
-      // 데이터베이스에 각 날짜에 해당하는 이벤트 저장
-      _addEventToDatabase(title, content, eventDate);
+      if (_events[eventDay] != null) {
+        _events[eventDay]!.add(newEvent);
+      } else {
+        _events[eventDay] = [newEvent];
+      }
 
       // 다음 날짜로 넘어가기
       eventDate = eventDate.add(Duration(days: 1));
     }
+
+    // 범위의 첫날에 해당하는 이벤트 정보만 데이터베이스에 저장
+    _addEventToDatabase(eventType, nickname, content, startDate, endDate);
 
     // 선택된 날짜에 대한 이벤트 리스트 갱신
     setState(() {
@@ -84,64 +103,75 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
 
 
-  Future<void> _addEventToDatabase(String title, String content, DateTime date) async {
-    final url = 'http://10.0.2.2:8000/api/add-event/';
+  Future<void> _addEventToDatabase(String eventType, String nickname, String content, DateTime startDate, DateTime endDate) async {
+    final token = await getToken();
+    final url = 'http://127.0.0.1:8000/api/add-event/';
 
     final response = await http.post(
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Token your_token',
+        'Authorization': 'Bearer $token',
       },
       body: jsonEncode({
-        'event_title': title,
+        'event_type': eventType,
+        'nickname': eventType == '개인일정' ? nickname : null,  // 개인일정일 때만 닉네임 포함
         'event_content': content,
-        'start_date': date.toIso8601String().split('T')[0],
-        'end_date': date.toIso8601String().split('T')[0],
+        'start_date': startDate.toIso8601String().split('T')[0],  // 시작 날짜
+        'end_date': endDate.toIso8601String().split('T')[0],      // 종료 날짜
       }),
     );
 
     if (response.statusCode == 201) {
       print('Event added to database');
     } else {
-      print('Failed to add event to database');
+      print('Failed to add event to database: ${response.statusCode} - ${response.body}');
     }
   }
 
   Future<void> _fetchEvents() async {
-    final url = 'http://your-django-server-url/get-family-events/';
+    final url = 'http://127.0.0.1:8000/api/get-family-events/';
+    final accessToken = await getAccessToken();
 
     final response = await http.get(
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Token your_token',
+        'Authorization': 'Bearer $accessToken',
       },
     );
 
     if (response.statusCode == 200) {
-      List<dynamic> data = jsonDecode(response.body);
+      List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      print("Fetched data: $data");
 
       data.forEach((eventData) {
-        DateTime eventDate = DateTime.parse(eventData['start_date']);
+        DateTime eventDate = DateTime.parse(eventData['start_date']).toLocal();
         DateTime keyDate = DateTime(eventDate.year, eventDate.month, eventDate.day);
-        String title = eventData['event_title'];
         String eventType = eventData['event_type'];
+        String? nickname = eventData['nickname'];
+        String eventContent = eventData['event_content'];
+        DateTime startDate = DateTime.parse(eventData['start_date']).toLocal();
+        DateTime endDate = DateTime.parse(eventData['end_date']).toLocal();
 
         if (_events[keyDate] != null) {
-          _events[keyDate]!.add(Event(title, eventType));
+          _events[keyDate]!.add(Event(eventType, eventContent, startDate, endDate, nickname: nickname));
         } else {
-          _events[keyDate] = [Event(title, eventType)];
+          _events[keyDate] = [Event(eventType, eventContent, startDate, endDate, nickname: nickname)];
         }
       });
 
       setState(() {
         _selectedEvents = _getEventsForDay(_selectedDay);
+        print("Selected events for $_selectedDay: $_selectedEvents");
       });
     } else {
-      print('Failed to fetch events from database');
+      print('Failed to fetch events from database: ${response.statusCode} - ${response.body}');
     }
   }
+
+
+
 
   void _showAddEventDialog() {
     DateTime selectedStartDate = _selectedDay;
@@ -300,7 +330,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                   onPressed: () {
                     if (eventContent.isNotEmpty) {
                       Navigator.of(context).pop();
-                      _addEvent(selectedStartDate, selectedEndDate, eventContent, eventContent, eventType);
+                      _addEvent(selectedStartDate, selectedEndDate, eventContent, eventType);
                       if (selectedStartDate != selectedEndDate) {
                         setState(() {
                           _rangeStart = selectedStartDate;
@@ -317,6 +347,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
       },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -539,7 +570,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                               ),
                             ),
                             TextSpan(
-                              text: event.title,
+                              text: event.eventContent,
                               style: TextStyle(
                                 fontSize: 18.0,
                                 fontWeight: FontWeight.bold,
@@ -602,11 +633,14 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 }
 
 class Event {
-  final String title;
   final String eventType;
+  final String? nickname;
+  final String eventContent;
+  final DateTime startDate;
+  final DateTime endDate;
 
-  Event(this.title, this.eventType);
+  Event(this.eventType, this.eventContent, this.startDate, this.endDate, {this.nickname});
 
   @override
-  String toString() => title;
+  String toString() => '$eventType: $eventContent ($startDate ~ $endDate)';
 }

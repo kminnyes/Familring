@@ -33,3 +33,15 @@ class FamilyRequestSerializer(serializers.ModelSerializer):
         model = FamilyRequest
         fields = ['id', 'from_user', 'to_user', 'family', 'progress', 'created_at']
         read_only_fields = ['family', 'from_user', 'progress']
+
+
+
+#일정 시리얼라이저
+from rest_framework import serializers
+from .models import Event
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = ['event_type', 'nickname', 'event_content', 'start_date', 'end_date']
+

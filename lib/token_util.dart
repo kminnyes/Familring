@@ -37,3 +37,9 @@ Future<double> getSavedFontSize() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getDouble('fontSize') ?? 16.0; // 기본 글씨 크기는 16.0
 }
+
+// 저장된 토큰 호출해서 사용하기
+Future<String?> getToken() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('access_token');
+}

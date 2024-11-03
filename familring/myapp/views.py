@@ -93,6 +93,8 @@ def get_family_bucketlist(request):
 
     serializer = BucketListSerializer(bucketlist, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK, content_type='application/json; charset=utf-8')
+
+
 # 버킷리스트 추가하기
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])  # JWT 토큰으로 인증된 사용자만 접근 가능
@@ -314,6 +316,76 @@ def save_question(request):
         question = DailyQuestion.objects.create(question=question_text)
         return JsonResponse({'message': 'Question saved successfully!', 'id': question.id})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+
+#일정 생성
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Event
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_event(request):
+    data = request.data
+    event_type = data.get('event_type')
+    nickname = data.get('nickname')
+    event_content = data.get('event_content')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+
+    # 필수 필드 검증
+    if not event_type:
+        return Response({'error': 'Event type is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not event_content:
+        return Response({'error': 'Event content is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not start_date:
+        return Response({'error': 'Start date is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not end_date:
+        return Response({'error': 'End date is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 날짜 형식 확인
+    try:
+        start_date = start_date  # datetime.date로 변환 (필요에 따라 파싱)
+        end_date = end_date      # datetime.date로 변환
+    except ValueError:
+        return Response({'error': 'Invalid date format.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Event 인스턴스 생성 및 저장
+    try:
+        event = Event(
+            event_type=event_type,
+            nickname=nickname,
+            event_content=event_content,
+            start_date=start_date,
+            end_date=end_date
+        )
+        event.save()
+        return Response({'message': 'Event added successfully'}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+#이벤트 가져오기
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import EventSerializer
+from .models import Event
+
+@api_view(['GET'])
+def get_family_events(request):
+    try:
+        events = Event.objects.all()
+        serializer = EventSerializer(events, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 from rest_framework.decorators import api_view, permission_classes

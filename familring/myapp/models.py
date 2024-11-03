@@ -93,3 +93,16 @@ class DailyQuestion(models.Model):
     question_id = models.AutoField(primary_key=True)  # AutoField는 자동으로 증가하는 필드
     question = models.TextField()  # 질문 텍스트
     created_at_q = models.DateField(auto_now_add=True)
+
+
+#캘린더 일정
+class Event(models.Model):
+    event_type = models.CharField(max_length=10)  # "가족일정" 또는 "개인일정"
+    nickname = models.CharField(max_length=50, blank=True, null=True)  # 개인일정일 때만 사용
+    event_content = models.TextField()
+    start_date = models.DateField()  # 시작 날짜
+    end_date = models.DateField()    # 종료 날짜
+
+    def __str__(self):
+        return f"{self.event_type} - {self.nickname or '우리가족'} ({self.start_date} ~ {self.end_date})"
+
