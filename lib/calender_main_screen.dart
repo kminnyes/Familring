@@ -536,7 +536,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                 itemBuilder: (context, index) {
                   final event = _selectedEvents[index];
                   final isFamilyEvent = event.eventType == '가족일정';
-                  final displayName = isFamilyEvent ? '우리 가족' : nickname;
+                  // 가족일정일 경우 '우리 가족', 개인일정일 경우 event.nickname 사용 -> 공유 캘린더
+                  final displayName = (event.eventType == '가족일정') ? '우리 가족' : event.nickname ?? nickname;
                   final suffix = isFamilyEvent ? '은' : '님은';
 
                   return Padding(
