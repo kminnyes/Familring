@@ -463,6 +463,42 @@ def get_family_events(request):
 
 
 
+#캘린더 이벤트 삭제하기
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Event
+
+@api_view(['DELETE'])
+def delete_event(request):
+    try:
+        # 요청에서 삭제할 기준 정보 받기
+        event_type = request.data.get('event_type')
+        nickname = request.data.get('nickname')
+        event_content = request.data.get('event_content')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+
+        # 필터링하여 조건에 맞는 모든 이벤트 삭제
+        events = Event.objects.filter(
+            event_type=event_type,
+            nickname=nickname,
+            event_content=event_content,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if events.exists():
+            deleted_count, _ = events.delete()
+            return Response({"message": f"{deleted_count} events deleted successfully."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "No matching events found."}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 
 

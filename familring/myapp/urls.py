@@ -43,6 +43,7 @@ urlpatterns = [
     #캘린더
     path('add-event/', add_event, name='add_event'),
     path('get-family-events/', views.get_family_events, name='get_family_events'),
+    path('delete-event/', views.delete_event, name='delete_event'),
 
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),

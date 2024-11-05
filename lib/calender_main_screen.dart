@@ -16,8 +16,6 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   List<Event> _selectedEvents = [];
   late DateTime _focusedDay;
   late DateTime _selectedDay;
-  DateTime? _rangeStart;
-  DateTime? _rangeEnd;
   String nickname = ''; // 닉네임 저장
 
   @override
@@ -27,6 +25,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     _selectedDay = DateTime.now();
     _fetchEvents();
     _loadNicknameFromSharedPreferences(); // 닉네임 로드 함수 호출
+
+
   }
 
   Future<void> _loadNicknameFromSharedPreferences() async {
@@ -45,6 +45,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
     _events.forEach((eventDate, eventList) {
       eventList.forEach((event) {
+        // 이벤트가 시작일, 종료일에 포함되도록 조건 수정
         if (!localDay.isBefore(event.startDate) && !localDay.isAfter(event.endDate)) {
           events.add(event);
         }
@@ -53,6 +54,21 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
     print("날짜: $localDay, 이벤트: $events");
     return events;
+  }
+
+
+  // 중복 제거 함수
+  List<Event> _getUniqueEvents(List<Event> events) {
+    final seen = <String>{};
+    return events.where((event) {
+      final uniqueKey = '${event.eventContent}-${event.startDate.toIso8601String()}-${event.endDate.toIso8601String()}';
+      if (seen.contains(uniqueKey)) {
+        return false;
+      } else {
+        seen.add(uniqueKey);
+        return true;
+      }
+    }).toList();
   }
 
 
@@ -70,8 +86,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   void _addEvent(DateTime startDate, DateTime endDate, String content, String eventType) {
     DateTime eventDate = startDate;
 
-    // 시작일부터 종료일까지 반복하며 모든 날짜에 이벤트 추가 (로컬에만 추가)
-    while (!eventDate.isAfter(endDate)) { // 종료일을 포함하여 반복
+    // 시작일부터 종료일까지 모든 날짜에 이벤트 추가
+    while (!eventDate.isAfter(endDate)) {
       DateTime eventDay = DateTime(eventDate.year, eventDate.month, eventDate.day);
 
       Event newEvent = Event(
@@ -79,7 +95,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
         content,
         startDate,
         endDate,
-        nickname: eventType == '개인일정' ? nickname : null, // 개인일정일 때만 닉네임 포함
+        nickname: eventType == '개인일정' ? nickname : null,
       );
 
       if (_events[eventDay] != null) {
@@ -88,18 +104,21 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
         _events[eventDay] = [newEvent];
       }
 
-      // 다음 날짜로 넘어가기
       eventDate = eventDate.add(Duration(days: 1));
     }
 
-    // 범위의 첫날에 해당하는 이벤트 정보만 데이터베이스에 저장
-    _addEventToDatabase(eventType, nickname, content, startDate, endDate);
 
-    // 선택된 날짜에 대한 이벤트 리스트 갱신
     setState(() {
-      _selectedEvents = _getEventsForDay(_selectedDay);
+      _selectedEvents = _getEventsForDay(_selectedDay); // 화면에 바로 반영되도록 업데이트
+    });
+
+    // DB에 이벤트 추가 후 화면 업데이트만 진행
+    Future.delayed(Duration.zero, () async {
+      await _addEventToDatabase(eventType, nickname, content, startDate, endDate);
     });
   }
+
+
 
 
 
@@ -129,6 +148,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     }
   }
 
+  //이벤트 가져오기
   Future<void> _fetchEvents() async {
     final url = 'http://127.0.0.1:8000/api/get-family-events/';
     final accessToken = await getAccessToken();
@@ -169,6 +189,187 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
       print('Failed to fetch events from database: ${response.statusCode} - ${response.body}');
     }
   }
+
+
+  // 이벤트를 삭제하는 함수
+  void _deleteEvent(Event event) async {
+    DateTime eventDate = event.startDate;
+
+    // 로컬에서 이벤트 삭제
+    while (!eventDate.isAfter(event.endDate)) {
+      DateTime eventDay = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      if (_events[eventDay] != null) {
+        _events[eventDay]!.removeWhere((e) => e.eventContent == event.eventContent && e.startDate == event.startDate && e.endDate == event.endDate);
+        if (_events[eventDay]!.isEmpty) {
+          _events.remove(eventDay);
+        }
+      }
+      eventDate = eventDate.add(Duration(days: 1));
+    }
+
+    setState(() {
+      _selectedEvents = _getUniqueEvents(_getEventsForDay(_selectedDay));
+    });
+
+    // 서버에서 이벤트 삭제
+    await _deleteEventFromDatabase(event);
+  }
+
+
+
+  // 서버에 삭제 요청 보내는 함수
+  Future<void> _deleteEventFromDatabase(Event event) async {
+    final url = 'http://127.0.0.1:8000/api/delete-event/'; // trailing slash 유지
+    final accessToken = await getAccessToken();
+
+    final response = await http.delete(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode({
+        'event_type': event.eventType,
+        'nickname': event.nickname,
+        'event_content': event.eventContent,
+        'start_date': event.startDate.toIso8601String().split('T')[0],
+        'end_date': event.endDate.toIso8601String().split('T')[0],
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Event deleted from database');
+    } else {
+      print('Failed to delete event from database: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+
+  // 삭제 확인 팝업을 띄우는 함수
+  Future<void> _showDeleteConfirmationDialog(Event event) async {
+    final result = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          content: Text('이 일정을 삭제하시겠습니까?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('취소',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),),
+
+              onPressed: () {
+                Navigator.of(context).pop(false); // 삭제 취소
+              },
+            ),
+            TextButton(
+              child: Text('삭제',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),),
+              onPressed: () {
+                Navigator.of(context).pop(true); // 삭제 진행
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      _deleteEvent(event); // 삭제 함수 호출
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('삭제되었습니다'),
+        ),
+      );
+    }
+  }
+
+  // 롱프레스 이벤트가 발생했을 때 삭제 확인 팝업 호출
+  Widget _buildEventItem(Event event) {
+    final isFamilyEvent = event.eventType == '가족일정';
+    final displayName = isFamilyEvent ? '우리 가족' : event.nickname ?? nickname;
+    final suffix = isFamilyEvent ? '은' : '님은';
+
+    return InkWell(
+      onTap: () {
+        print("Event tapped: ${event.eventContent}");
+      },
+      onLongPress: () {
+        print("Long press detected for event: ${event.eventContent}");
+        _showDeleteConfirmationDialog(event);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Color.fromARGB(255, 255, 186, 81), width: 1.5),
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          alignment: Alignment.center,
+          child: RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: displayName,
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: " $suffix 오늘 ",
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: event.eventContent,
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 255, 186, 81),
+                  ),
+                ),
+                TextSpan(
+                  text: " 일정",
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 255, 186, 81),
+                  ),
+                ),
+                TextSpan(
+                  text: "이 있어요",
+                  style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
+
+
 
 
 
@@ -329,14 +530,11 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                   ),
                   onPressed: () {
                     if (eventContent.isNotEmpty) {
+                      setState(() {
+                        _selectedDay = selectedStartDate;  // _selectedDay를 selectedStartDate로 설정
+                      });
                       Navigator.of(context).pop();
                       _addEvent(selectedStartDate, selectedEndDate, eventContent, eventType);
-                      if (selectedStartDate != selectedEndDate) {
-                        setState(() {
-                          _rangeStart = selectedStartDate;
-                          _rangeEnd = selectedEndDate;
-                        });
-                      }
                     }
                   },
                 ),
@@ -376,11 +574,17 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
               focusedDay: _focusedDay,
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              selectedDayPredicate: (day) {
+                final isSame = isSameDay(_selectedDay, day);
+                print("selectedDayPredicate called for day: $day, isSame: $isSame"); // 디버그 출력
+                return isSame;
+              },
               onDaySelected: _onDaySelected,
-              eventLoader: _getEventsForDay,
-              rangeStartDay: _rangeStart,
-              rangeEndDay: _rangeEnd,
+              eventLoader: (day) {
+                final events = _getEventsForDay(day);
+                print("eventLoader called for day: $day, events: $events"); // 디버그 출력
+                return events;
+              },
               calendarStyle: CalendarStyle(
                 todayTextStyle: TextStyle(color: Colors.white),
                 todayDecoration: BoxDecoration(
@@ -398,15 +602,6 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                 markerSize: 8.0,
                 markersMaxCount: 2,
                 // 범위 시작과 끝의 색상을 설정
-                rangeStartDecoration: BoxDecoration(
-                  color: Colors.yellow, // 범위 시작일 색상
-                  shape: BoxShape.circle,
-                ),
-                rangeEndDecoration: BoxDecoration(
-                  color: Colors.yellow, // 범위 끝일 색상
-                  shape: BoxShape.circle,
-                ),
-                rangeHighlightColor: Colors.limeAccent.withOpacity(0.5),
                 outsideDaysVisible: true,
                 outsideTextStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
                 disabledTextStyle: TextStyle(color: Colors.grey),
@@ -482,8 +677,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                         markers.add(
                           Container(
                             margin: EdgeInsets.symmetric(horizontal: 2.0),
-                            width: 8,
-                            height: 8,
+                            width: 9,
+                            height: 9,
                             decoration: BoxDecoration(
                               color: Color(0xFF38963B), // 가족일정 마커는 초록색
                               shape: BoxShape.circle,
@@ -500,8 +695,8 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
                         markers.add(
                           Container(
                             margin: EdgeInsets.symmetric(horizontal: 2.0),
-                            width: 8,
-                            height: 8,
+                            width: 9,
+                            height: 9,
                             decoration: BoxDecoration(
                               color: Color(0xFFFF9CBA), // 개인일정 마커는 분홍색
                               shape: BoxShape.circle,
@@ -532,73 +727,10 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
             ),
             Expanded(
               child: ListView.builder(
-                itemCount: _selectedEvents.length,
+                itemCount: _getUniqueEvents(_selectedEvents).length,
                 itemBuilder: (context, index) {
-                  final event = _selectedEvents[index];
-                  final isFamilyEvent = event.eventType == '가족일정';
-                  // 가족일정일 경우 '우리 가족', 개인일정일 경우 event.nickname 사용 -> 공유 캘린더
-                  final displayName = (event.eventType == '가족일정') ? '우리 가족' : event.nickname ?? nickname;
-                  final suffix = isFamilyEvent ? '은' : '님은';
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Color.fromARGB(255, 255, 186, 81), width: 1.5),
-                        borderRadius: BorderRadius.circular(12.0), // 테두리 끝 둥글게 설정
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                      alignment: Alignment.center, // 텍스트 가운데 정렬
-                      child: RichText(
-                        textAlign: TextAlign.center, // 텍스트 중앙 정렬
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: displayName,
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold, // displayName만 굵게 설정
-                                color: Colors.black,
-                              ),
-                            ),
-                            TextSpan(
-                              text: " $suffix 오늘 ",
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.normal, // 기본 글씨
-                                color: Colors.black,
-                              ),
-                            ),
-                            TextSpan(
-                              text: event.eventContent,
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold,
-                                color: Color.fromARGB(255, 255, 186, 81), // 주황색 텍스트
-                              ),
-                            ),
-                            TextSpan(
-                              text: " 일정",
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold,
-                                color: Color.fromARGB(255, 255, 186, 81), // 주황색 텍스트
-                              ),
-                            ),
-                            TextSpan(
-                              text: "이 있어요",
-                              style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.normal,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
+                  final event = _getUniqueEvents(_selectedEvents)[index];
+                  return _buildEventItem(event); // _buildEventItem 함수로 이벤트 항목을 구성
                 },
               ),
             ),
@@ -640,8 +772,12 @@ class Event {
   final DateTime startDate;
   final DateTime endDate;
 
-  Event(this.eventType, this.eventContent, this.startDate, this.endDate, {this.nickname});
+  Event(this.eventType, this.eventContent, this.startDate, this.endDate,
+      { this.nickname});
 
   @override
   String toString() => '$eventType: $eventContent ($startDate ~ $endDate)';
 }
+
+
+
