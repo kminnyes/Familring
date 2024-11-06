@@ -12,7 +12,7 @@ from datetime import date
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import User, BucketList, Family, FamilyRequest, FamilyList
+from .models import User, BucketList, Family, FamilyRequest, FamilyList, Answer
 from .serializers import UserSerializer, BucketListSerializer, FamilySerializer, \
     FamilyRequestSerializer
 from django.contrib.auth.hashers import make_password, check_password
@@ -337,9 +337,8 @@ def respond_to_invitation(request):
 
     return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
-
+# 질문 db에 저장(gpt)
 import json
-#오늘의 질문 (gpt)
 import logging
 logger = logging.getLogger(__name__)
 from django.views.decorators.csrf import csrf_exempt
@@ -355,6 +354,27 @@ def save_question(request):
         question = DailyQuestion.objects.create(question=question_text)
         return JsonResponse({'message': 'Question saved successfully!', 'id': question.id})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+# 질문 가져오기
+def question_list(request):
+    questions = DailyQuestion.objects.all().values('id', 'question')
+    return JsonResponse(list(questions), safe=False)
+
+
+# 답변 저장하기
+@csrf_exempt
+@api_view(['POST'])
+def save_answer(request):
+    question_id = request.data.get('question_id')
+    answer_text = request.data.get('answer')
+
+    if not question_id or not answer_text:
+        return Response({"error": "question_id and answer are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    answer = Answer(question_id=question_id, answer=answer_text)
+    answer.save()
+    return Response({"message": "Answer saved successfully."}, status=status.HTTP_201_CREATED)
 
 
 from rest_framework.decorators import api_view, permission_classes
@@ -376,6 +396,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

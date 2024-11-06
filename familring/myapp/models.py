@@ -114,9 +114,26 @@ class BucketList(models.Model):
 
 #오늘의 질문 모델 정의
 class DailyQuestion(models.Model):
-    question_id = models.AutoField(primary_key=True)  # AutoField는 자동으로 증가하는 필드
+    # question_id = models.AutoField(primary_key=True)  # AutoField는 자동으로 증가하는 필드
     question = models.TextField()  # 질문 텍스트
     created_at_q = models.DateField(auto_now_add=True)
+
+    class Meta:
+        ordering =['-created_at_q']
+    def __str__(self):
+        return self.question
+
+
+#답변
+from django.db import models
+
+class Answer(models.Model):
+    question = models.ForeignKey(DailyQuestion, on_delete=models.CASCADE)
+    answer = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Answer to Question {self.question.id}"
 
 
 #캘린더 일정
