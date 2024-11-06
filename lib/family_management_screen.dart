@@ -142,12 +142,20 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     );
 
     if (response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      final familyId = responseData['family_id'];
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('family_id', familyId);
+      print('Family ID saved to SharedPreferences: $familyId');
+
       print('가족이 생성되었습니다.');
       Navigator.of(context).pop();
     } else {
       print('가족 생성 실패');
     }
   }
+
 
   void _showCreateFamilyDialog() {
     showDialog(
@@ -202,6 +210,13 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     );
 
     if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final familyId = responseData['family_id'];
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('family_id', familyId);
+      print('Family ID saved to SharedPreferences: $familyId');
+
       print('가족 초대 요청 처리 완료');
       setState(() {
         _pendingFamilyRequest = null; // 요청 처리 후 초기화
@@ -210,6 +225,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       print('가족 초대 요청 처리 실패');
     }
   }
+
 
   void _showPendingRequestDialog() {
     showDialog(

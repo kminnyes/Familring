@@ -17,19 +17,33 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
   String nickname = ''; // 닉네임 저장
+  int? familyId;
 
   @override
   void initState() {
     super.initState();
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
-    _fetchEvents();
-    _loadNicknameFromSharedPreferences(); // 닉네임 로드 함수 호출
+    _loadNicknameFromSharedPreferences();
+    _loadFamilyIdFromSharedPreferences().then((_) {
+      if (familyId != null) {
+        _fetchEvents(familyId!);
+      }
+    });
 
 
   }
 
-  Future<void> _loadNicknameFromSharedPreferences() async {
+  Future<void> _loadFamilyIdFromSharedPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      familyId = prefs.getInt('family_id') ?? null; // 기본적으로 null 설정
+      print('Family ID loaded from SharedPreferences: $familyId');
+    });
+  }
+
+
+    Future<void> _loadNicknameFromSharedPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       nickname = prefs.getString('nickname') ?? '';
@@ -121,10 +135,14 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
 
 
-
   Future<void> _addEventToDatabase(String eventType, String nickname, String content, DateTime startDate, DateTime endDate) async {
     final token = await getToken();
     final url = 'http://127.0.0.1:8000/api/add-event/';
+
+    if (token == null) {
+      print("Error: Token is null");
+      return;
+    }
 
     final response = await http.post(
       Uri.parse(url),
@@ -134,10 +152,11 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
       },
       body: jsonEncode({
         'event_type': eventType,
-        'nickname': eventType == '개인일정' ? nickname : null,  // 개인일정일 때만 닉네임 포함
+        'nickname': eventType == '개인일정' ? nickname : null,
         'event_content': content,
-        'start_date': startDate.toIso8601String().split('T')[0],  // 시작 날짜
-        'end_date': endDate.toIso8601String().split('T')[0],      // 종료 날짜
+        'start_date': startDate.toIso8601String().split('T')[0],
+        'end_date': endDate.toIso8601String().split('T')[0],
+        'family_id': familyId,  // 이미 로드된 familyId를 사용
       }),
     );
 
@@ -148,9 +167,12 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     }
   }
 
+
+
+
   //이벤트 가져오기
-  Future<void> _fetchEvents() async {
-    final url = 'http://127.0.0.1:8000/api/get-family-events/';
+  Future<void> _fetchEvents(int familyId) async {
+    final url = 'http://127.0.0.1:8000/api/get-family-events/?family_id=$familyId';
     final accessToken = await getAccessToken();
 
     final response = await http.get(
@@ -163,32 +185,34 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
     if (response.statusCode == 200) {
       List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      print("Fetched data: $data");
+      Map<DateTime, List<Event>> fetchedEvents = {}; // 새로운 맵 생성
 
-      data.forEach((eventData) {
-        DateTime eventDate = DateTime.parse(eventData['start_date']).toLocal();
-        DateTime keyDate = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      for (var eventData in data) {
+        DateTime startDate = DateTime.parse(eventData['start_date']).toLocal();
+        DateTime endDate = DateTime.parse(eventData['end_date']).toLocal();
+        DateTime keyDate = DateTime(startDate.year, startDate.month, startDate.day);
         String eventType = eventData['event_type'];
         String? nickname = eventData['nickname'];
         String eventContent = eventData['event_content'];
-        DateTime startDate = DateTime.parse(eventData['start_date']).toLocal();
-        DateTime endDate = DateTime.parse(eventData['end_date']).toLocal();
 
-        if (_events[keyDate] != null) {
-          _events[keyDate]!.add(Event(eventType, eventContent, startDate, endDate, nickname: nickname));
+        Event event = Event(eventType, eventContent, startDate, endDate, nickname: nickname);
+
+        if (fetchedEvents[keyDate] != null) {
+          fetchedEvents[keyDate]!.add(event);
         } else {
-          _events[keyDate] = [Event(eventType, eventContent, startDate, endDate, nickname: nickname)];
+          fetchedEvents[keyDate] = [event];
         }
-      });
+      }
 
       setState(() {
-        _selectedEvents = _getEventsForDay(_selectedDay);
-        print("Selected events for $_selectedDay: $_selectedEvents");
+        _events = fetchedEvents; // `_events`를 새로운 맵으로 업데이트
+        _selectedEvents = _getEventsForDay(_selectedDay); // 새로 고침된 이벤트 설정
       });
     } else {
-      print('Failed to fetch events from database: ${response.statusCode} - ${response.body}');
+      print('Failed to fetch events: ${response.statusCode} - ${response.body}');
     }
   }
+
 
 
   // 이벤트를 삭제하는 함수
@@ -367,14 +391,12 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
   }
 
 
-
-
-
-
-
-
-
   void _showAddEventDialog() {
+    if (familyId == null) {
+      _showNoFamilyDialog(); // familyId가 없을 때 팝업 표시
+      return;
+    }
+
     DateTime selectedStartDate = _selectedDay;
     DateTime selectedEndDate = _selectedDay;
     String eventContent = '';
@@ -544,7 +566,35 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
         );
       },
     );
+
   }
+
+    void _showNoFamilyDialog() {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            content: Text('가족이 생성되지 않았어요. \n 마이페이지에서 가족을 추가해주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('확인',
+                  style: TextStyle(
+                    color: Color(0xFFFFA651),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+
 
 
   @override

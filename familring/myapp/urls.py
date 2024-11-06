@@ -1,13 +1,14 @@
 from django.urls import path
-from .views import delete_account, logout_view
+from .views import delete_account, logout_view, add_event, get_family_events
 # from .views import register, login, SaveQuestionView
 from rest_framework_simplejwt.views import TokenRefreshView
-from .import views
+from . import views
+
 from .views import (
     register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
     get_profile, update_profile, send_family_invitation, check_invitation_status,
     respond_to_invitation, search_user, get_all_users, pending_family_request, get_csrf_token,
-    save_question, create_family,save_answer, add_event
+    save_question, create_family
 )
 
 urlpatterns = [
@@ -18,10 +19,11 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # 버킷리스트
-    path('bucket/', get_bucketlists, name='get_family_bucketlist'),
+    path('bucket/', get_bucketlists, name='get_bucketlists'),
     path('bucket/add/', add_bucketlist, name='add_bucketlist'),
     path('bucket/complete/<int:bucket_id>/', complete_bucketlist, name='complete_bucketlist'),
 
+    #프로필
     path('profile/', get_profile, name='get_profile'),
     path('profile/update/', update_profile, name='update_profile'),
 
@@ -40,11 +42,8 @@ urlpatterns = [
 
     #캘린더
     path('add-event/', add_event, name='add_event'),
-    path('get-family-events/', views.get_family_events, name='get_family_events'),
+    path('get-family-events/', get_family_events, name='get_family_events'),
     path('delete-event/', views.delete_event, name='delete_event'),
-
-    #답변관련
-    path('save_answer/', save_answer, name='save_answer'),
 
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),

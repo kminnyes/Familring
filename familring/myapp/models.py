@@ -137,13 +137,20 @@ class Answer(models.Model):
 
 
 #캘린더 일정
+from django.db import models
+
 class Event(models.Model):
-    event_type = models.CharField(max_length=10)  # "가족일정" 또는 "개인일정"
-    nickname = models.CharField(max_length=50, blank=True, null=True)  # 개인일정일 때만 사용
+    EVENT_TYPE_CHOICES = [
+        ('가족일정', '가족일정'),
+        ('개인일정', '개인일정'),
+    ]
+
+    event_type = models.CharField(max_length=10, choices=EVENT_TYPE_CHOICES)  # "가족일정" 또는 "개인일정"
+    nickname = models.CharField(max_length=50, blank=True, null=True)         # 개인일정일 때만 사용
     event_content = models.TextField()
-    start_date = models.DateField()  # 시작 날짜
-    end_date = models.DateField()    # 종료 날짜
+    start_date = models.DateField()                                           # 시작 날짜
+    end_date = models.DateField()                                             # 종료 날짜
+    family = models.ForeignKey('Family', on_delete=models.CASCADE, related_name='events', null=True, blank=True)  # 가족 ID로 참조
 
     def __str__(self):
         return f"{self.event_type} - {self.nickname or '우리가족'} ({self.start_date} ~ {self.end_date})"
-

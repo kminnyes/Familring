@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -32,14 +31,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
-        String accessToken = responseData['access'];  // access 토큰 추출
-        String refreshToken = responseData['refresh']; // refresh 토큰 추출
+        String accessToken = responseData['access'];
+        String refreshToken = responseData['refresh'];
+        int userId = responseData['user_id'];
+        int? familyId = responseData['family_id'];
+        String nickname = responseData['username'];
 
-        // SharedPreferences에 access와 refresh 토큰 모두 저장
-        await saveTokens(accessToken, refreshToken);
+        // 토큰 및 사용자 정보 저장
+        await saveUserInfo(accessToken, refreshToken, userId, familyId, nickname);
 
-        // 로그인 성공 후 닉네임 초기화
-        await initializeNickname(accessToken);
+        // 저장된 데이터 확인
+        await checkStoredUserInfo();
 
         setState(() {
           _errorMessage = '';
@@ -63,37 +65,34 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 토큰 저장 함수
-  Future<void> saveTokens(String accessToken, String refreshToken) async {
+  // 토큰 및 사용자 정보 저장 함수
+  Future<void> saveUserInfo(
+      String accessToken,
+      String refreshToken,
+      int userId,
+      int? familyId,
+      String nickname,
+      ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
     await prefs.setString('refresh_token', refreshToken);
+    await prefs.setInt('user_id', userId);
+    await prefs.setString('nickname', nickname);
+    if (familyId != null) {
+      await prefs.setInt('family_id', familyId);
+    }
   }
 
-  // 닉네임 초기화 함수
-  Future<void> initializeNickname(String token) async {
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+  // SharedPreferences 확인 함수
+  Future<void> checkStoredUserInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? storedUserId = prefs.getInt('user_id');
+    int? storedFamilyId = prefs.getInt('family_id');
+    String? storedNickname = prefs.getString('nickname');
 
-    final response = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/profile/'), // Django 서버 URL
-      headers: headers,
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      String nickname = data['nickname'];
-
-      // 닉네임을 SharedPreferences에 저장하여 다른 화면에서도 사용
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('nickname', nickname);
-
-      print('Nickname saved to SharedPreferences: $nickname');
-    } else {
-      print('Failed to load nickname from server');
-    }
+    print('Stored user_id: $storedUserId');
+    print('Stored family_id: ${storedFamilyId ?? "No family_id"}');
+    print('Stored nickname: $storedNickname');
   }
 
   @override

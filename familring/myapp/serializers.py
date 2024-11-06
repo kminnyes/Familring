@@ -38,10 +38,21 @@ class FamilyRequestSerializer(serializers.ModelSerializer):
 
 #일정 시리얼라이저
 from rest_framework import serializers
-from .models import Event
+from .models import Event, Family
 
 class EventSerializer(serializers.ModelSerializer):
+    family_id = serializers.IntegerField(write_only=True, required=False)  # family_id를 입력받아 참조
+    family_name = serializers.CharField(source='family.family_name', read_only=True)  # 가족 이름을 읽기 전용으로 추가
+
     class Meta:
         model = Event
-        fields = ['event_type', 'nickname', 'event_content', 'start_date', 'end_date']
+        fields = ['event_type', 'nickname', 'event_content', 'start_date', 'end_date', 'family_id', 'family_name']
+
+    def create(self, validated_data):
+        # family_id를 validated_data에서 꺼내고, family 필드에 참조할 수 있도록 설정
+        family_id = validated_data.pop('family_id', None)
+        family = None
+        if family_id:
+            family = Family.objects.get(family_id=family_id)
+        return Event.objects.create(family=family, **validated_data)
 

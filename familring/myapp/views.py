@@ -208,6 +208,14 @@ def get_all_users(request):
     )
 
 # 가족 생성 API
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import User, Family, FamilyList, FamilyRequest
+from .serializers import UserSerializer, FamilyRequestSerializer
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_family(request):
@@ -224,7 +232,9 @@ def create_family(request):
     # 첫 번째 사용자를 가족 목록에 추가
     FamilyList.objects.create(family=family, user=request.user)
 
+    # family_id 반환
     return Response({"family_id": family.family_id, "family_name": family.family_name}, status=status.HTTP_201_CREATED)
+
 
 # 사용자 검색 기능 (로그인한 사용자와 이미 가족 구성원인 사용자 제외)
 @api_view(['GET'])
@@ -317,6 +327,7 @@ def pending_family_request(request):
 
 # 가족 초대 승인/거절
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def respond_to_invitation(request):
     data = request.data
     family_request = get_object_or_404(FamilyRequest, id=data['request_id'])
@@ -329,13 +340,14 @@ def respond_to_invitation(request):
         )
         family_request.progress = '승인'
         family_request.save()
-        return Response({"message": "가족 초대가 승인되었습니다."}, status=status.HTTP_200_OK)
+        return Response({"message": "가족 초대가 승인되었습니다.", "family_id": family_request.family.family_id}, status=status.HTTP_200_OK)
     elif data['action'] == '거절':
         family_request.progress = '거절'
         family_request.save()
         return Response({"message": "가족 초대가 거절되었습니다."}, status=status.HTTP_200_OK)
 
     return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # 질문 db에 저장(gpt)
 import json
@@ -422,67 +434,41 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Event
+from .models import Event, Family
+from .serializers import EventSerializer
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_event(request):
-    data = request.data
-    event_type = data.get('event_type')
-    nickname = data.get('nickname')
-    event_content = data.get('event_content')
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
+    serializer = EventSerializer(data=request.data)
 
-    # 필수 필드 검증
-    if not event_type:
-        return Response({'error': 'Event type is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    if not event_content:
-        return Response({'error': 'Event content is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    if not start_date:
-        return Response({'error': 'Start date is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    if not end_date:
-        return Response({'error': 'End date is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # 날짜 형식 확인
-    try:
-        start_date = start_date  # datetime.date로 변환 (필요에 따라 파싱)
-        end_date = end_date      # datetime.date로 변환
-    except ValueError:
-        return Response({'error': 'Invalid date format.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Event 인스턴스 생성 및 저장
-    try:
-        event = Event(
-            event_type=event_type,
-            nickname=nickname,
-            event_content=event_content,
-            start_date=start_date,
-            end_date=end_date
-        )
-        event.save()
-        return Response({'message': 'Event added successfully'}, status=status.HTTP_201_CREATED)
-    except Exception as e:
-        return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if serializer.is_valid():
+        event = serializer.save()  # family_id 처리는 Serializer의 create 메서드에서 수행
+        return Response(EventSerializer(event).data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 #캘린더 이벤트 가져오기
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from .serializers import EventSerializer
 from .models import Event
+from .serializers import EventSerializer
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_family_events(request):
-    try:
-        events = Event.objects.all()
-        serializer = EventSerializer(events, many=True)
+    family_id = request.query_params.get('family_id')
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if not family_id:
+        return Response({"error": "family_id parameter is required"}, status=400)
+
+    events = Event.objects.filter(family_id=family_id)
+    serializer = EventSerializer(events, many=True)
+    return Response(serializer.data)
+
 
 
 
@@ -493,23 +479,39 @@ from rest_framework import status
 from .models import Event
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_event(request):
     try:
         # 요청에서 삭제할 기준 정보 받기
+        user = request.user
         event_type = request.data.get('event_type')
         nickname = request.data.get('nickname')
         event_content = request.data.get('event_content')
         start_date = request.data.get('start_date')
         end_date = request.data.get('end_date')
 
-        # 필터링하여 조건에 맞는 모든 이벤트 삭제
-        events = Event.objects.filter(
-            event_type=event_type,
-            nickname=nickname,
-            event_content=event_content,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        # 사용자가 가족과 연결된 경우 해당 가족의 이벤트를 삭제 대상으로 설정
+        family_list_entry = FamilyList.objects.filter(user=user).first()
+        if family_list_entry:
+            family = family_list_entry.family
+            events = Event.objects.filter(
+                family=family,
+                event_type=event_type,
+                nickname=nickname,
+                event_content=event_content,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        else:
+            # 가족이 없을 경우 개인 일정만 삭제
+            events = Event.objects.filter(
+                family__isnull=True,  # 개인 일정은 family가 null인 경우로 가정
+                nickname=nickname,
+                event_type=event_type,
+                event_content=event_content,
+                start_date=start_date,
+                end_date=end_date,
+            )
 
         if events.exists():
             deleted_count, _ = events.delete()
