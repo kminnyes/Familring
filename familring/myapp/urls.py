@@ -8,7 +8,7 @@ from .views import (
     register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
     get_profile, update_profile, send_family_invitation, check_invitation_status,
     respond_to_invitation, search_user, get_all_users, pending_family_request, get_csrf_token,
-    save_question, create_family
+    save_question, create_family, save_answer
 )
 
 urlpatterns = [
@@ -37,8 +37,12 @@ urlpatterns = [
     path('family/invitation/respond/', respond_to_invitation, name='respond_to_invitation'),
     path('delete_account/', delete_account, name='delete_account'),
 
+    # 질문 관련
     # path('api/generate_question/', GenerateQuestionView.as_view(), name='generate_question'),
     path('save_question/', save_question, name='save_question'),
+    path('save_answer/', save_answer, name='save_answer'),
+    path('question_list/', views.question_list, name='question_list'),
+
 
     #캘린더
     path('add-event/', add_event, name='add_event'),

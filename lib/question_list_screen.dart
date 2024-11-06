@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'answer_question_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class QuestionListScreen extends StatefulWidget {
   @override
@@ -7,14 +9,32 @@ class QuestionListScreen extends StatefulWidget {
 }
 
 class _QuestionListScreenState extends State<QuestionListScreen> {
-  List<Map<String, String>> questionsAndAnswers = [
-    {'question': '가장 최근에 읽은 책은?', 'answer': ''},
-  ];
+  List<Map<String, dynamic>> questionsAndAnswers = [];
 
-  void addQuestionAnswerPair(String question, String answer) {
-    setState(() {
-      questionsAndAnswers.add({'question': question, 'answer': answer});
-    });
+  @override
+  void initState() {
+    super.initState();
+    fetchQuestions();
+  }
+
+  // Django 서버에서 질문 리스트 가져오는 함수
+  Future<void> fetchQuestions() async {
+    try {
+      final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/question_list/')); // Django 서버의 실제 IP 사용
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          questionsAndAnswers = data
+              .map((question) => {'question': question['question'], 'answer': ''})
+              .toList();
+        });
+      } else {
+        print('Failed to load questions: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      print('Error fetching questions: $e');
+    }
   }
 
   @override
