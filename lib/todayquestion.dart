@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-//import 'package:openai_client/openai_client.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async'; //타이머 패키지
 
@@ -15,7 +14,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
   String question = "...Loading?"; // 질문
   String answer = ""; // 답변
   Timer? _timer;
-  Duration interval = Duration(minutes:3);
+  Duration interval = Duration(minutes:30);
 
   @override
   void initState() {
@@ -42,7 +41,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
     super.dispose();
   }
 
-
+String questionId=""; //질문 ID를 저장할 변수 추가
 Future<void> _openAi() async {
     final apiKey = dotenv.env['OPENAI_API_KEY']!;
     final response = await http.post(
@@ -64,7 +63,8 @@ Future<void> _openAi() async {
     if (response.statusCode == 200) {
       var data = jsonDecode(utf8.decode(response.bodyBytes)); //한국어로 변경
       setState(() {
-        question = data['choices'][0]['message']['content'];
+        question = data['choices'][0]['message']['content'] ?? '질문을 불러오는 데 실패했습니다';
+        questionId = data['choices'][0]['id'] ?? 'UnknownID'; //questionId를 데이터에서 받아와서 저장
         print('API sucess: $question'); // 로그 추가
       });
       await _saveQuestionToDB(question);
@@ -93,6 +93,23 @@ Future<void> _openAi() async {
       print('Failed to save question: ${response.reasonPhrase}');
     }
   }
+
+  Future<void> _saveAnswerToDB(String question, String answer) async {
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/save_answer/'), // Django 서버의 URL로 수정
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'question_id': questionId, 'answer': answer}),
+    );
+
+    if (response.statusCode == 200) {
+      print('Answer saved successfully');
+    } else {
+      print('Failed to save answer: ${response.reasonPhrase}');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -139,12 +156,12 @@ Future<void> _openAi() async {
             ),
             SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () {
-                // 답변 저장 로직 추가 가능
-                // 예: 서버로 전송 또는 로컬 저장
+              onPressed: () async { // async를 추가한 람다 함수
                 print('Question: $question');
                 print('Answer: $answer');
 
+                // 서버로 답변 저장 요청
+                await _saveAnswerToDB(questionId, answer);
 
                 // 알림을 표시하고 TodayQuestion과 QuestionNotification 화면을 pop하여 HomeScreen으로 전환
                 showDialog(
@@ -157,7 +174,7 @@ Future<void> _openAi() async {
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).pop(); // 다이얼로그 닫기
-                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route)=>false); // HomeScreen으로 돌아가기
+                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false); // HomeScreen으로 돌아가기
                           },
                           child: Text('확인'),
                         ),
