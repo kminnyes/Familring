@@ -64,7 +64,7 @@ def login(request):
         # 사용자에 연결된 family 정보 가져오기
         family = Family.objects.filter(user_id=user).first()  # `user_id`로 수정
         family_id = family.family_id if family else None
-        
+
 
         return Response({
             'refresh': str(refresh),
@@ -523,6 +523,7 @@ def delete_event(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+#이벤트 업데이트
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -571,11 +572,3 @@ def update_event(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
-
-
-

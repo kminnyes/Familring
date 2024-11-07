@@ -43,19 +43,29 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Navigation Bar',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white, //앱 기본 배경색을 흰색으로 설정
+        primarySwatch: Colors.amber, // 앱의 기본 색상을 주황색으로 설정
+        scaffoldBackgroundColor: Colors.white, // 앱 기본 배경색을 흰색으로 설정
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
+          iconTheme: IconThemeData(color: Colors.black), // 앱바 아이콘 색상을 검은색으로 설정
         ),
         textTheme: TextTheme(
-          bodyMedium: TextStyle(fontSize: fontSize), // `bodyMedium` 사용
+          bodyMedium: TextStyle(fontSize: fontSize),
           bodyLarge: TextStyle(fontSize: fontSize),
-          headlineSmall: TextStyle(fontSize: fontSize), // 헤드라인에도 적용
+          headlineSmall: TextStyle(fontSize: fontSize),
+        ),
+        colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.amber).copyWith(
+          secondary: Colors.amber, // 강조 색상 설정
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.amber), // 입력 필드 포커스 색상 설정
+            borderRadius: BorderRadius.circular(12.0),
+          ),
         ),
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: initialRoute, // 초기 경로 설정
+      initialRoute: initialRoute,
       routes: {
         '/login': (context) => LoginScreen(),
         '/signup': (context) => SignupScreen(),
@@ -65,7 +75,7 @@ class MyApp extends StatelessWidget {
         '/today_question': (context) => QuestionListScreen(),
         '/edit_profile': (context) => mypage.EditProfileScreen(nickname: '닉네임'),
         '/font_size_settings': (context) => FontSizeSettingsScreen(),
-        '/welcome' : (context) => WelcomeScreen()
+        '/welcome': (context) => WelcomeScreen(),
       },
     );
   }
