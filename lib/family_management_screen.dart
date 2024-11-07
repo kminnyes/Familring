@@ -15,12 +15,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   String searchQuery = '';
   dynamic _pendingFamilyRequest;
   TextEditingController _familyNameController = TextEditingController();
+  bool _hasFamily = false;
+  Set<String> _invitedUsers = {}; // 이미 초대한 사용자 ID 추적
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
     _checkPendingFamilyRequest();
+    _checkFamilyStatus(); // 가족 생성 여부 확인
   }
 
   Future<void> _loadUsers() async {
@@ -84,6 +87,13 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     }
   }
 
+  Future<void> _checkFamilyStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _hasFamily = prefs.containsKey('family_id');
+    });
+  }
+
   void _searchUser(String query) {
     setState(() {
       searchQuery = query;
@@ -99,6 +109,11 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   }
 
   Future<void> _sendFamilyInvitation(String toUserId) async {
+    if (_invitedUsers.contains(toUserId)) {
+      _showMessageDialog('이미 초대 요청을 보낸 사용자입니다.');
+      return;
+    }
+
     String? token = await getAccessToken();
     if (token == null) {
       print('No token found!');
@@ -117,13 +132,21 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     );
 
     if (response.statusCode == 201) {
-      print('초대 요청이 전송되었습니다.');
+      setState(() {
+        _invitedUsers.add(toUserId); // 초대한 사용자 목록에 추가
+      });
+      _showMessageDialog('초대 요청이 전송되었습니다.');
     } else {
       print('초대 요청 실패');
     }
   }
 
   Future<void> _createFamily() async {
+    if (_hasFamily) {
+      _showMessageDialog('이미 가족을 생성하셨습니다.');
+      return;
+    }
+
     String? token = await getAccessToken();
     if (token == null) {
       print('No token found!');
@@ -147,15 +170,16 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setInt('family_id', familyId);
-      print('Family ID saved to SharedPreferences: $familyId');
+      setState(() {
+        _hasFamily = true;
+      });
 
-      print('가족이 생성되었습니다.');
+      _showMessageDialog('가족이 생성되었습니다.');
       Navigator.of(context).pop();
     } else {
       print('가족 생성 실패');
     }
   }
-
 
   void _showCreateFamilyDialog() {
     showDialog(
@@ -215,17 +239,16 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setInt('family_id', familyId);
-      print('Family ID saved to SharedPreferences: $familyId');
-
-      print('가족 초대 요청 처리 완료');
       setState(() {
+        _hasFamily = true;
         _pendingFamilyRequest = null; // 요청 처리 후 초기화
       });
+
+      print('Family ID saved to SharedPreferences: $familyId');
     } else {
       print('가족 초대 요청 처리 실패');
     }
   }
-
 
   void _showPendingRequestDialog() {
     showDialog(
@@ -233,8 +256,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('가족 초대 요청'),
-          content: Text(
-              '${_pendingFamilyRequest['family']['family_name']} 가족에 가입하시겠습니까?'),
+          content: Text('${_pendingFamilyRequest['family']['family_name']} 가족에 가입하시겠습니까?'),
           actions: <Widget>[
             TextButton(
               onPressed: () {
@@ -249,6 +271,26 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                 Navigator.of(context).pop();
               },
               child: Text('거절'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 성공 메시지 표시
+  void _showMessageDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('확인'),
             ),
           ],
         );
