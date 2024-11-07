@@ -91,7 +91,6 @@ class _BucketListScreenState extends State<BucketListScreen> {
     }
   }
 
-
   // 버킷리스트 추가 팝업
   void _showAddBucketDialog() {
     String newBucketItem = '';
