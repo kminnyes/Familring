@@ -74,12 +74,15 @@ flutter:
     - images/question.png
     - .env
     - images/appbaricon.png
-    - images/familring_user_icon4.png
+    - images/familring_user_icon1.png
     - images/familring_user_icon2.png
     - images/familring_user_icon3.png
+    - images/familring_user_icon4.png
     - images/familring_user_icon5.png
     - images/familring_user_icon6.png
-    - images/familring_user_icon1.png
+    - images/familring_icon_in_bkl.png
+    - images/login_icon.png
+    - images/familring_welcome.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

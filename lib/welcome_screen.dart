@@ -4,52 +4,68 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Familring',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.orange),
-            ),
-            SizedBox(height: 50),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.chat_bubble, color: Colors.yellow),
-                  onPressed: () {},
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // familring_welcome.png 이미지 표시
+              Image.asset(
+                'images/familring_welcome.png',  // 이미지 경로 설정
+                width: 300,
+                height: 290,
+              ),
+              SizedBox(height: 40),
+
+              // "로그인하러 가기" 버튼
+              SizedBox(
+                width: 220, // 가로 크기 조정
+                height: 60, // 세로 크기 조정
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/login');  // 로그인 페이지로 이동
+                  },
+                  child: Text(
+                    '로그인하러 가기',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 253, 200, 82),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
+                    minimumSize: Size(250, 50), // 최소 크기 설정
+                  ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.nature_people, color: Colors.green),
-                  onPressed: () {},
+              ),
+              SizedBox(height: 30),
+
+              // "회원 가입하기" 버튼
+              SizedBox(
+                width: 220, // 가로 크기 조정
+                height: 60, // 세로 크기 조정
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/signup');  // 회원가입 페이지로 이동
+                  },
+                  child: Text(
+                    '회원 가입하기',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 253, 200, 82),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
+                    minimumSize: Size(250, 50), // 최소 크기 설정
+                  ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.apple, color: Colors.red),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(Icons.apple, color: Colors.black),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/login');
-              },
-              child: Text('이메일로 로그인'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-              child: Text('회원가입'),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
