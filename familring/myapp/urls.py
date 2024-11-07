@@ -48,6 +48,8 @@ urlpatterns = [
     path('add-event/', add_event, name='add_event'),
     path('get-family-events/', get_family_events, name='get_family_events'),
     path('delete-event/', views.delete_event, name='delete_event'),
+    path('update-event/', views.update_event, name='update_event'),
+
 
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),

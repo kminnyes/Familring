@@ -323,6 +323,7 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
     return InkWell(
       onTap: () {
         print("Event tapped: ${event.eventContent}");
+        _showEditEventDialog(event); // 다이얼로그 표시
       },
       onLongPress: () {
         print("Long press detected for event: ${event.eventContent}");
@@ -569,7 +570,160 @@ class _CalendarMainScreenState extends State<CalendarMainScreen> {
 
   }
 
-    void _showNoFamilyDialog() {
+
+  void _showEditEventDialog(Event event) {
+    if (familyId == null) {
+      _showNoFamilyDialog();
+      return;
+    }
+
+    DateTime selectedStartDate = event.startDate;
+    DateTime selectedEndDate = event.endDate;
+    String eventContent = event.eventContent;
+    String eventType = event.eventType;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              title: Text('일정 수정'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    DropdownButtonFormField<String>(
+                      value: eventType,
+                      onChanged: (value) {
+                        setState(() {
+                          eventType = value!;
+                        });
+                      },
+                      items: <String>['가족일정', '개인일정']
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      decoration: InputDecoration(
+                        labelText: '일정 종류 선택',
+                      ),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.calendar_today),
+                      title: Text("시작 날짜: ${DateFormat('MM월 dd일 EEEE', 'ko_KR').format(selectedStartDate)}"),
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedStartDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedStartDate = picked;
+                            if (selectedEndDate.isBefore(selectedStartDate)) {
+                              selectedEndDate = selectedStartDate;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.calendar_today),
+                      title: Text("끝 날짜: ${DateFormat('MM월 dd일 EEEE', 'ko_KR').format(selectedEndDate)}"),
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedEndDate,
+                          firstDate: selectedStartDate,
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedEndDate = picked;
+                          });
+                        }
+                      },
+                    ),
+                    TextField(
+                      controller: TextEditingController(text: eventContent),
+                      onChanged: (value) {
+                        eventContent = value;
+                      },
+                      decoration: InputDecoration(hintText: "일정 내용을 입력하세요"),
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('취소'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text('수정'),
+                  onPressed: () {
+                    if (eventContent.isNotEmpty) {
+                      Navigator.of(context).pop();
+                      _updateEvent(event, selectedStartDate, selectedEndDate, eventContent, eventType);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _updateEvent(Event oldEvent, DateTime newStartDate, DateTime newEndDate, String newContent, String newType) {
+    // 로컬에서 일정 업데이트
+    _deleteEvent(oldEvent);
+    _addEvent(newStartDate, newEndDate, newContent, newType);
+
+    // 서버에 업데이트 요청
+    _updateEventInDatabase(oldEvent, newStartDate, newEndDate, newContent, newType);
+  }
+
+  Future<void> _updateEventInDatabase(Event oldEvent, DateTime newStartDate, DateTime newEndDate, String newContent, String newType) async {
+    final url = 'http://127.0.0.1:8000/api/update-event/';
+    final accessToken = await getAccessToken();
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode({
+        'old_event_content': oldEvent.eventContent,
+        'old_start_date': oldEvent.startDate.toIso8601String().split('T')[0],
+        'old_end_date': oldEvent.endDate.toIso8601String().split('T')[0],
+        'new_event_type': newType,
+        'new_nickname': newType == '개인일정' ? nickname : null,
+        'new_event_content': newContent,
+        'new_start_date': newStartDate.toIso8601String().split('T')[0],
+        'new_end_date': newEndDate.toIso8601String().split('T')[0],
+        'family_id': familyId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Event updated successfully');
+    } else {
+      print('Failed to update event: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+
+  void _showNoFamilyDialog() {
       showDialog(
         context: context,
         builder: (BuildContext context) {

@@ -523,6 +523,55 @@ def delete_event(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Event
+from .serializers import EventSerializer
+from datetime import datetime
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_event(request):
+    # 기존 이벤트 정보
+    old_event_content = request.data.get('old_event_content')
+    old_start_date = request.data.get('old_start_date')
+    old_end_date = request.data.get('old_end_date')
+
+    # 업데이트할 정보
+    new_event_type = request.data.get('new_event_type')
+    new_nickname = request.data.get('new_nickname')
+    new_event_content = request.data.get('new_event_content')
+    new_start_date = request.data.get('new_start_date')
+    new_end_date = request.data.get('new_end_date')
+    family_id = request.data.get('family_id')
+
+    try:
+        # 기존 이벤트 필터링
+        event = Event.objects.filter(
+            event_content=old_event_content,
+            start_date=old_start_date,
+            end_date=old_end_date,
+            family_id=family_id
+        ).first()
+
+        if not event:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # 새 데이터로 업데이트
+        event.event_type = new_event_type
+        event.nickname = new_nickname
+        event.event_content = new_event_content
+        event.start_date = datetime.strptime(new_start_date, "%Y-%m-%d").date()
+        event.end_date = datetime.strptime(new_end_date, "%Y-%m-%d").date()
+        event.save()
+
+        return Response(EventSerializer(event).data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
