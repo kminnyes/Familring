@@ -417,15 +417,19 @@ def delete_family(request, family_id):
 def family_members(request):
     try:
         # 현재 사용자가 속한 가족의 구성원 가져오기
+        family_list = FamilyList.objects.filter(user = request.user).first()
         family_members = FamilyList.objects.filter(
-            family_user=request.user
-        ).select_related('user')
+            family= family_list.family
+        )
 
         # 구성원을 직렬화
         serializer = UserSerializer(
             [member.user for member in family_members], many=True
         )
-        return Response(serializer.data, status=200)
+        return Response(serializer.data,
+                        status=200,
+                        content_type='application/json; charset=utf-8')
+
     except Exception as e:
         return Response(
             {"error": str(e)}, status=500
