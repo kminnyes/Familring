@@ -153,29 +153,46 @@ from .models import BucketList
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 
-# 버킷리스트 완료 처리
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def complete_bucketlist(request, bucket_id):
-    #print(f"Received request to update bucket with ID: {bucket_id}")
     user = request.user
-    is_family_bucket = request.data.get('is_family_bucket', False)
+    print(f"User ID: {user.id}, Bucket ID: {bucket_id}")
 
-    if is_family_bucket:
-        # 가족 버킷리스트 완료 처리
-        family_list_entry = FamilyList.objects.filter(user=user).first()
-        if not family_list_entry:
-            return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        # 버킷리스트 항목 조회
+        bucketlist = BucketList.objects.filter(bucket_id=bucket_id).first()
 
-        family = family_list_entry.family
-        bucketlist = get_object_or_404(BucketList, bucket_id=bucket_id, family=family, user__isnull=True)
-    else:
-        # 개인 버킷리스트 완료 처리
-        bucketlist = get_object_or_404(BucketList, bucket_id=bucket_id, user=request.user, family__isnull=True)
+        if not bucketlist:
+            print("BucketList not found.")
+            return Response({"error": "BucketList not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    bucketlist.is_completed = True
-    bucketlist.save()
-    return Response({"message": "버킷리스트가 완료되었습니다."}, status=status.HTTP_200_OK)
+        # 개인 버킷리스트인지 가족 버킷리스트인지 확인
+        if bucketlist.user_id == user.id and bucketlist.family_id is None:
+            # 개인 버킷리스트 완료 처리
+            print("Processing personal bucketlist.")
+        elif bucketlist.family_id is not None:
+            # 가족 버킷리스트 완료 처리
+            family_list_entry = FamilyList.objects.filter(user=user, family=bucketlist.family).first()
+            if not family_list_entry:
+                print("User is not associated with this family.")
+                return Response({"error": "No family associated with this user for the given bucket list."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            print("Processing family bucketlist.")
+        else:
+            # 요청자가 접근 권한이 없는 경우
+            print("Unauthorized access to bucketlist.")
+            return Response({"error": "Unauthorized access to bucket list."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 완료 상태로 업데이트
+        bucketlist.is_completed = True
+        bucketlist.save()
+        print(f"Bucket ID {bucket_id} marked as completed.")
+        return Response({"message": "버킷리스트가 완료되었습니다."}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from rest_framework import status
 from django.shortcuts import get_object_or_404
