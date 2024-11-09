@@ -13,7 +13,8 @@ import 'package:familring2/main.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp(fontSize: 16, initialRoute: '',));
+    await tester.pumpWidget(MyApp( initialRoute: '',));
+    // await tester.pumpWidget(MyApp(fontSize: 16, initialRoute: '',)); 원래 이거였는데 오류생겨서 fontsize를 아예 없애줌
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
