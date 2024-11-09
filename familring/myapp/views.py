@@ -201,14 +201,14 @@ def update_profile(request):
 
 @api_view(['GET'])
 def get_all_users(request):
-    users = User.objects.all()
+    cUser = request.user  # 요청한 사용자
+    users = User.objects.exclude(id=cUser.id)  # 요청한 사용자를 제외한 사용자
     serializer = UserSerializer(users, many=True)
     return Response(
         serializer.data,
         status=200,
         content_type='application/json; charset=utf-8'
     )
-
 # 가족 생성 API
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -225,6 +225,11 @@ def create_family(request):
     if not family_name:
         return Response({"error": "Family name is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # 사용자가 속한 가족이 없는지 확인
+    has_family = Family.objects.filter(user=request.user).exists() or FamilyList.objects.filter(user=request.user).exists()
+    if has_family:
+        return Response({"error": "이미 가족이 존재합니다. 가족 삭제 후 다시 생성할 수 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
     # 새로운 가족 생성
     family = Family.objects.create(
         family_name=family_name,
@@ -234,8 +239,14 @@ def create_family(request):
     # 첫 번째 사용자를 가족 목록에 추가
     FamilyList.objects.create(family=family, user=request.user)
 
-    # family_id 반환
-    return Response({"family_id": family.family_id, "family_name": family.family_name}, status=status.HTTP_201_CREATED)
+    return Response(
+        {
+            "family_id": family.family_id,
+            "family_name": family.family_name,
+            "message": "가족이 성공적으로 생성되었습니다."
+        },
+        status=status.HTTP_201_CREATED
+    )
 
 
 # 사용자 검색 기능 (로그인한 사용자와 이미 가족 구성원인 사용자 제외)
@@ -357,17 +368,32 @@ from django.shortcuts import get_object_or_404
 from .models import Family
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_family(request, family_id):
-    # 삭제하려는 가족 객체 가져오기
-    family = get_object_or_404(Family, id=family_id)
+    try:
+        # 가족 객체 가져오기
+        family = Family.objects.get(family_id=family_id)
+    except Family.DoesNotExist:
+        return Response({"error": "가족이 존재하지 않습니다."}, status=status.HTTP_404_NOT_FOUND)
 
     # 요청자가 가족 삭제 권한이 있는지 확인
     if family.user != request.user:
         return Response({"error": "가족을 삭제할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
 
-    # 가족 삭제
-    family.delete()
-    return Response({"message": "가족이 삭제되었습니다."}, status=status.HTTP_204_NO_CONTENT)
+    try:
+        # 연결된 FamilyList 데이터 삭제
+        FamilyList.objects.filter(family=family).delete()
+
+        # 가족 삭제
+        family.delete()
+
+        # 삭제 성공 메시지 반환
+        return Response({"message": "가족이 성공적으로 삭제되었습니다."}, status=status.HTTP_204_NO_CONTENT)
+
+    except Exception as e:
+        print(f"Error deleting family: {e}")
+        return Response({"error": "가족 삭제 중 오류가 발생했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -375,7 +401,7 @@ def family_members(request):
     try:
         # 현재 사용자가 속한 가족의 구성원 가져오기
         family_members = FamilyList.objects.filter(
-            family__user=request.user
+            family_user=request.user
         ).select_related('user')
 
         # 구성원을 직렬화
@@ -388,11 +414,20 @@ def family_members(request):
             {"error": str(e)}, status=500
         )
 
+# 로그인된 사용자 정보 반환하는 API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data, status=200)
+
+
 # 질문 db에 저장(gpt)
 import json
 import logging
 logger = logging.getLogger(__name__)
 from django.views.decorators.csrf import csrf_exempt
+
 # OpenAI API Key 설정
 openai.api_key = 'OPENAI_API_KEY'
 @csrf_exempt
@@ -449,8 +484,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
-
-
+# 로그아웃
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):

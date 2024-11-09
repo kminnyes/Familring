@@ -13,7 +13,11 @@ class Family(models.Model):
 
 class FamilyList(models.Model):
     id = models.AutoField(primary_key=True)
-    family = models.ForeignKey(Family, on_delete=models.CASCADE)
+    family = models.ForeignKey(
+        Family,
+        on_delete=models.CASCADE,  # 가족 삭제 시 연관 데이터도 삭제
+        related_name='family_members'
+    )
     user = models.ForeignKey('User', on_delete=models.CASCADE)
 
     def __str__(self):
