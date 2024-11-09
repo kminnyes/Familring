@@ -16,12 +16,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   dynamic _pendingFamilyRequest;
   TextEditingController _familyNameController = TextEditingController();
   bool _hasFamily = false;
+  int? _familyId; // 현재 가족 ID 저장
+  String? _currentUserId; // 현재 사용자 ID
   Set<String> _invitedUsers = {}; // 이미 초대한 사용자 ID 추적
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _loadCurrentUser();
     _checkPendingFamilyRequest();
     _checkFamilyStatus(); // 가족 생성 여부 확인
   }
@@ -51,6 +54,34 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       });
     } else {
       print('Failed to load users');
+    }
+  }
+// 본인 정보를 로드하는 함수 (추가)
+  Future<void> _loadCurrentUser() async {
+    String? token = await getAccessToken();
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/users/me/'), // 본인 정보 API 엔드포인트
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        _currentUserId = data['id']; // 본인 사용자 ID 저장
+      });
+      _loadUsers(); // 본인 ID를 로드한 후 사용자 목록을 가져옴
+    } else {
+      print('Failed to load current user');
     }
   }
 
@@ -91,6 +122,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _hasFamily = prefs.containsKey('family_id');
+      _familyId = prefs.getInt('family_id'); // 가족 ID 가져오기
     });
   }
 
@@ -141,6 +173,49 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     }
   }
 
+  Future<void> _respondToFamilyRequest(String action) async {
+    if (_pendingFamilyRequest == null) {
+      _showMessageDialog('처리할 가족 초대 요청이 없습니다.');
+      return;
+    }
+
+    String? token = await getAccessToken();
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/family/invitation/respond/'),
+      headers: headers,
+      body: jsonEncode({
+        'request_id': _pendingFamilyRequest['id'],
+        'action': action,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final familyId = responseData['family_id'];
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('family_id', familyId);
+      setState(() {
+        _hasFamily = true;
+        _pendingFamilyRequest = null; // 요청 처리 후 초기화
+      });
+
+      print('Family ID saved to SharedPreferences: $familyId');
+    } else {
+      print('가족 초대 요청 처리 실패');
+    }
+  }
+
   Future<void> _createFamily() async {
     if (_hasFamily) {
       _showMessageDialog('이미 가족을 생성하셨습니다.');
@@ -172,6 +247,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       await prefs.setInt('family_id', familyId);
       setState(() {
         _hasFamily = true;
+        _familyId = familyId;
       });
 
       _showMessageDialog('가족이 생성되었습니다.');
@@ -179,6 +255,136 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     } else {
       print('가족 생성 실패');
     }
+  }
+
+  Future<void> deleteFamily() async {
+    if (_familyId == null) {
+      _showMessageDialog('삭제할 가족이 없습니다.');
+      return;
+    }
+
+    String? token = await getAccessToken();
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.delete(
+      Uri.parse('http://127.0.0.1:8000/api/family/$_familyId/delete/'),
+      headers: headers,
+    );
+
+    if (response.statusCode == 204) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('family_id'); // 가족 ID 삭제
+      setState(() {
+        _hasFamily = false;
+        _familyId = null;
+      });
+      _showMessageDialog('가족이 삭제되었습니다.');
+    } else {
+      print('Failed to delete family');
+      _showMessageDialog('가족 삭제에 실패했습니다.');
+    }
+  }
+
+  void _showPendingRequestDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('가족 초대 요청'),
+          content: Text(
+              '${_pendingFamilyRequest['family']['family_name']} 가족에 가입하시겠습니까?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                _respondToFamilyRequest('승인');
+                Navigator.of(context).pop();
+              },
+              child: Text('승인'),
+            ),
+            TextButton(
+              onPressed: () {
+                _respondToFamilyRequest('거절');
+                Navigator.of(context).pop();
+              },
+              child: Text('거절'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMessageDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('가족 관리')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ElevatedButton(
+              onPressed: _showCreateFamilyDialog,
+              child: Text('가족 만들기'),
+            ),
+            if (_hasFamily)
+              ElevatedButton(
+                onPressed: deleteFamily,
+                child: Text('가족 삭제하기'),
+              ),
+            TextField(
+              decoration: InputDecoration(labelText: '사용자 검색'),
+              onChanged: _searchUser,
+            ),
+            SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _filteredUsers.length,
+                itemBuilder: (context, index) {
+                  final user = _filteredUsers[index];
+                  return ListTile(
+                    title: Text(user['username']),
+                    subtitle: Text(user['nickname'] ?? ''),
+                    trailing: IconButton(
+                      icon: Icon(Icons.person_add),
+                      onPressed: () {
+                        _sendFamilyInvitation(user['id'].toString());
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showCreateFamilyDialog() {
@@ -212,170 +418,6 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           ],
         );
       },
-    );
-  }
-
-  Future<void> _respondToFamilyRequest(String action) async {
-    String? token = await getAccessToken();
-    if (token == null) {
-      print('No token found!');
-      return;
-    }
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/family/invitation/respond/'),
-      headers: headers,
-      body: jsonEncode({'request_id': _pendingFamilyRequest['id'], 'action': action}),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      final familyId = responseData['family_id'];
-
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('family_id', familyId);
-      setState(() {
-        _hasFamily = true;
-        _pendingFamilyRequest = null; // 요청 처리 후 초기화
-      });
-
-      print('Family ID saved to SharedPreferences: $familyId');
-    } else {
-      print('가족 초대 요청 처리 실패');
-    }
-  }
-
-  void _showPendingRequestDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('가족 초대 요청'),
-          content: Text('${_pendingFamilyRequest['family']['family_name']} 가족에 가입하시겠습니까?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                _respondToFamilyRequest('승인');
-                Navigator.of(context).pop();
-              },
-              child: Text('승인'),
-            ),
-            TextButton(
-              onPressed: () {
-                _respondToFamilyRequest('거절');
-                Navigator.of(context).pop();
-              },
-              child: Text('거절'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 성공 메시지 표시
-  void _showMessageDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> deleteFamily(BuildContext context, int familyId) async {
-    String? token = await getAccessToken(); // 토큰 가져오기
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    final response = await http.delete(
-      Uri.parse('http://127.0.0.1:8000/api/family/$familyId/delete/'),
-      headers: headers,
-    );
-
-    if (response.statusCode == 204) {
-      // 삭제 성공 시 팝업 띄우기
-      _showMessageDialog("가족이 삭제되었습니다.");
-    } else {
-      print("가족 삭제 실패: ${response.body}");
-    }
-  }
-
-// 성공 또는 실패 메시지를 표시하는 팝업 함수
-  void _showMessageDialog2(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('가족 관리')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            ElevatedButton(
-              onPressed: _showCreateFamilyDialog,
-              child: Text('가족 만들기'),
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: '사용자 검색'),
-              onChanged: _searchUser,
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _filteredUsers.length,
-                itemBuilder: (context, index) {
-                  final user = _filteredUsers[index];
-                  return ListTile(
-                    title: Text(user['username']),
-                    subtitle: Text(user['nickname'] ?? ''),
-                    trailing: IconButton(
-                      icon: Icon(Icons.person_add),
-                      onPressed: () {
-                        _sendFamilyInvitation(user['id'].toString());
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
