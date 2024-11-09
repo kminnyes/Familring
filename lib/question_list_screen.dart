@@ -26,7 +26,11 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
         List<dynamic> data = jsonDecode(response.body);
         setState(() {
           questionsAndAnswers = data
-              .map((question) => {'question': question['question'], 'answer': ''})
+              .map((question) => {
+            'id': question['id'],  // 'id' 추가
+            'question': question['question'],
+            'answer': ''
+          })
               .toList();
         });
       } else {
@@ -70,7 +74,10 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AnswerQuestionScreen(question: qa['question']!),
+                    builder: (context) => AnswerQuestionScreen(
+                      question: qa['question'],
+                      questionId: qa['id'] ?? 0, // 'id'가 null일 경우 0 사용
+                    ),
                   ),
                 );
               },
