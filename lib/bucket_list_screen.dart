@@ -75,6 +75,8 @@ class _BucketListScreenState extends State<BucketListScreen> {
   // 버킷리스트 완료 API 호출
   void _completeBucketItem(int bucketId, bool isCompleted) async {
     try {
+      print('Completing bucket item with ID: $bucketId');
+
       Map<String, String> headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('http://127.0.0.1:8000/api/bucket/complete/$bucketId/'),
@@ -90,6 +92,8 @@ class _BucketListScreenState extends State<BucketListScreen> {
       print('Error completing bucket item: $error');
     }
   }
+
+
 
   // 버킷리스트 추가 팝업
   void _showAddBucketDialog() {

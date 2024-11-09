@@ -298,6 +298,46 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     );
   }
 
+  Future<void> deleteFamily(BuildContext context, int familyId) async {
+    String? token = await getAccessToken(); // 토큰 가져오기
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final response = await http.delete(
+      Uri.parse('http://127.0.0.1:8000/api/family/$familyId/delete/'),
+      headers: headers,
+    );
+
+    if (response.statusCode == 204) {
+      // 삭제 성공 시 팝업 띄우기
+      _showMessageDialog("가족이 삭제되었습니다.");
+    } else {
+      print("가족 삭제 실패: ${response.body}");
+    }
+  }
+
+// 성공 또는 실패 메시지를 표시하는 팝업 함수
+  void _showMessageDialog2(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

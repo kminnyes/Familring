@@ -21,6 +21,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.middleware.csrf import get_token
+from .models import UserFontSetting
 
 
 @api_view(['GET'])
@@ -156,6 +157,7 @@ from rest_framework import status
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def complete_bucketlist(request, bucket_id):
+    #print(f"Received request to update bucket with ID: {bucket_id}")
     user = request.user
     is_family_bucket = request.data.get('is_family_bucket', False)
 
@@ -166,10 +168,10 @@ def complete_bucketlist(request, bucket_id):
             return Response({'error': 'No family associated with this user'}, status=status.HTTP_400_BAD_REQUEST)
 
         family = family_list_entry.family
-        bucketlist = get_object_or_404(BucketList, id=bucket_id, family=family, user__isnull=True)
+        bucketlist = get_object_or_404(BucketList, bucket_id=bucket_id, family=family, user__isnull=True)
     else:
         # 개인 버킷리스트 완료 처리
-        bucketlist = get_object_or_404(BucketList, id=bucket_id, user=user, family__isnull=True)
+        bucketlist = get_object_or_404(BucketList, bucket_id=bucket_id, user=request.user, family__isnull=True)
 
     bucketlist.is_completed = True
     bucketlist.save()
@@ -348,6 +350,43 @@ def respond_to_invitation(request):
 
     return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from .models import Family
+
+@api_view(['DELETE'])
+def delete_family(request, family_id):
+    # 삭제하려는 가족 객체 가져오기
+    family = get_object_or_404(Family, id=family_id)
+
+    # 요청자가 가족 삭제 권한이 있는지 확인
+    if family.user != request.user:
+        return Response({"error": "가족을 삭제할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+    # 가족 삭제
+    family.delete()
+    return Response({"message": "가족이 삭제되었습니다."}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def family_members(request):
+    try:
+        # 현재 사용자가 속한 가족의 구성원 가져오기
+        family_members = FamilyList.objects.filter(
+            family__user=request.user
+        ).select_related('user')
+
+        # 구성원을 직렬화
+        serializer = UserSerializer(
+            [member.user for member in family_members], many=True
+        )
+        return Response(serializer.data, status=200)
+    except Exception as e:
+        return Response(
+            {"error": str(e)}, status=500
+        )
 
 # 질문 db에 저장(gpt)
 import json
@@ -572,3 +611,20 @@ def update_event(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#폰트 설정
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def font_setting(request):
+    user = request.user
+    if request.method == 'GET':
+        setting, _ = UserFontSetting.objects.get_or_create(user=user)
+        return Response({'font_size': setting.font_size})
+    elif request.method == 'PUT':
+        font_size = request.data.get('font_size')
+        if font_size is not None:
+            setting, _ = UserFontSetting.objects.get_or_create(user=user)
+            setting.font_size = font_size
+            setting.save()
+            return Response({'message': 'Font size updated successfully'})
+        return Response({'error': 'Invalid font size'}, status=400)

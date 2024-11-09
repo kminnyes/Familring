@@ -154,3 +154,8 @@ class Event(models.Model):
 
     def __str__(self):
         return f"{self.event_type} - {self.nickname or '우리가족'} ({self.start_date} ~ {self.end_date})"
+
+#폰트 설정
+class UserFontSetting(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    font_size = models.FloatField(default=16.0)

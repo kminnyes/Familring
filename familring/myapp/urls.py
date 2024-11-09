@@ -8,7 +8,7 @@ from .views import (
     register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
     get_profile, update_profile, send_family_invitation, check_invitation_status,
     respond_to_invitation, search_user, get_all_users, pending_family_request, get_csrf_token,
-    save_question, create_family, save_answer
+    save_question, create_family, save_answer, delete_family, family_members
 )
 
 urlpatterns = [
@@ -35,7 +35,9 @@ urlpatterns = [
     path('family/invite/', send_family_invitation, name='send_family_invitation'),
     path('family/invitation/status/', check_invitation_status, name='check_invitation_status'),
     path('family/invitation/respond/', respond_to_invitation, name='respond_to_invitation'),
+    path('family/<int:family_id>/delete/', delete_family, name='delete_family'),
     path('delete_account/', delete_account, name='delete_account'),
+    path('family/members/', family_members, name='family_members'),
 
     # 질문 관련
     # path('api/generate_question/', GenerateQuestionView.as_view(), name='generate_question'),
@@ -54,4 +56,8 @@ urlpatterns = [
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),
     path('logout/', logout_view, name='logout'),
+
+    #폰트
+    path('font-setting/', views.font_setting, name='font_setting'),
+
 ]

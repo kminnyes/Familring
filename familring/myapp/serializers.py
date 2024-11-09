@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, BucketList, Family, FamilyRequest, FamilyList
+from .models import UserFontSetting
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -56,3 +57,7 @@ class EventSerializer(serializers.ModelSerializer):
             family = Family.objects.get(family_id=family_id)
         return Event.objects.create(family=family, **validated_data)
 
+class UserFontSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserFontSetting
+        fields = ['font_size']

@@ -38,6 +38,7 @@ dependencies:
   flutter_dotenv: ^5.0.2 #.env파일 읽을 수 있는 패키지
   workmanager: ^0.5.0 # 백그라운드
   android_alarm_manager_plus: ^3.0.0 #백그라운드
+  provider: ^6.1.2
 
 
   # The following adds the Cupertino Icons font to your application.

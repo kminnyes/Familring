@@ -17,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
     {"name": "아빠", "task": "친구들과 골프 약속", "img": "images/familring_user_icon1.png"},
     {"name": "엄마", "task": "냉장고 정리 하기", "img": "images/familring_user_icon3.png"},
   ];
+  List<dynamic> _familyMembers = []; // 가족 멤버 데이터
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     });
     _fetchBucketLists();
+    _fetchFamilyMembers();
   }
 
   Future<Map<String, String>> _getHeaders() async {
@@ -59,6 +61,146 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _fetchFamilyMembers() async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/family/members/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _familyMembers = data;
+        });
+      } else {
+        throw Exception('Failed to load family members');
+      }
+    } catch (error) {
+      print('Error fetching family members: $error');
+    }
+  }
+
+  Future<void> _createFamily(String familyName) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/family/create/'),
+        headers: headers,
+        body: jsonEncode({'family_name': familyName}),
+      );
+
+      if (response.statusCode == 201) {
+        // 가족 생성 성공
+        _showMessageDialog("가족이 생성되었습니다.");
+        setState(() {
+          _fetchFamilyMembers();
+        });
+      } else if (response.statusCode == 400) {
+        // 이미 가족이 있는 경우
+        _showMessageDialog("이미 가족이 존재합니다.");
+      } else {
+        // 기타 오류
+        _showMessageDialog("가족 생성을 실패하였습니다.");
+      }
+    } catch (error) {
+      _showMessageDialog("가족 생성을 실패하였습니다.");
+      print("가족 생성 오류: $error");
+    }
+  }
+
+  void _showAddFamilyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        TextEditingController _familyNameController = TextEditingController();
+
+        return AlertDialog(
+          title: Text("새로운 가족 추가"),
+          content: TextField(
+            controller: _familyNameController,
+            decoration: InputDecoration(labelText: "가족 이름을 입력하세요"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                String familyName = _familyNameController.text.trim();
+                if (familyName.isNotEmpty) {
+                  await _createFamily(familyName);
+                }
+                Navigator.of(context).pop();
+              },
+              child: Text("확인"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("취소"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMessageDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("확인"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFamilyAddButton() {
+    return GestureDetector(
+      onTap: _showAddFamilyDialog,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.orange, width: 2),
+        ),
+        child: Icon(Icons.add, color: Colors.orange, size: 30),
+      ),
+    );
+  }
+
+  Widget _buildFamilyMember(Map<String, dynamic> member) {
+    return Column(
+      children: [
+        SizedBox(
+          width: 60,
+          height: 60,
+          child: CircleAvatar(
+            backgroundImage: AssetImage("images/familring_user_icon1.png"),
+            child: Text(
+              member['nickname'][0], // 첫 글자로 표시
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          member['nickname'],
+          style: TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,6 +224,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 가족 추가 및 가족 멤버 UI
+            Row(
+              children: [
+                ..._familyMembers.map((member) => _buildFamilyMember(member)).toList(),
+                _buildFamilyAddButton(),
+              ],
+            ),
+            SizedBox(height: 20),
+
             // Family Bucket List Section
             Text(
               "우리 가족 버킷리스트",
@@ -173,19 +324,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(left: 16.0), // 왼쪽 간격 추가
+                        padding: const EdgeInsets.only(left: 16.0),
                         child: Column(
                           children: [
                             SizedBox(
-                              width: 50, // 고정 너비
-                              height: 50, // 고정 높이
+                              width: 50,
+                              height: 50,
                               child: Image.asset(
                                 _scheduleList[index]["img"]!,
-                                fit: BoxFit.cover, // 이미지가 고정된 크기에 맞추도록 설정
+                                fit: BoxFit.cover,
                               ),
                             ),
                             Transform.translate(
-                              offset: Offset(0, -8), // 이미지와 텍스트 간격 줄이기
+                              offset: Offset(0, -8),
                               child: Text(
                                 _scheduleList[index]["name"]!,
                                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
@@ -194,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                      SizedBox(width: 16), // 이미지와 텍스트 사이 간격 조정
+                      SizedBox(width: 16),
                       Expanded(
                         child: Text(
                           _scheduleList[index]["task"]!,
@@ -212,7 +363,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 버킷리스트 완료 상태 변경 API 호출
   void _toggleCompleteStatus(int bucketId, bool isCompleted) async {
     try {
       Map<String, String> headers = await _getHeaders();

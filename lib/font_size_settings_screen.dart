@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
+import 'package:provider/provider.dart'; // Provider 패키지 import
+import 'font_size_provider.dart'; // FontSizeProvider import
 
 class FontSizeSettingsScreen extends StatefulWidget {
   @override
@@ -12,20 +13,25 @@ class _FontSizeSettingsScreenState extends State<FontSizeSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFontSize();  // 글씨 크기 로드
+    _loadFontSize(); // 글씨 크기 로드
   }
 
   // 저장된 글씨 크기를 불러오는 함수
-  void _loadFontSize() async {
-    double savedFontSize = await getSavedFontSize(); // 유틸리티 함수로 글씨 크기 불러오기
+  void _loadFontSize() {
+    // Provider에서 현재 설정된 글씨 크기를 가져옴
+    final fontSizeProvider = Provider.of<FontSizeProvider>(context, listen: false);
     setState(() {
-      _currentFontSize = savedFontSize;
+      _currentFontSize = fontSizeProvider.fontSize;
     });
   }
 
-  // 글씨 크기 저장
-  void _saveFontSize(double fontSize) async {
-    await saveFontSize(fontSize);  // SharedPreferences에 저장
+  // 글씨 크기 저장 및 Provider 업데이트
+  void _saveFontSize(double fontSize) {
+    // Provider에서 글씨 크기 업데이트
+    final fontSizeProvider = Provider.of<FontSizeProvider>(context, listen: false);
+    fontSizeProvider.updateFontSize(fontSize);
+
+    // 스낵바로 저장 완료 알림
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('글씨 크기가 저장되었습니다.')),
     );
@@ -46,25 +52,31 @@ class _FontSizeSettingsScreenState extends State<FontSizeSettingsScreen> {
               '글씨 크기',
               style: TextStyle(fontSize: 18),
             ),
-            Slider(
-              value: _currentFontSize,
-              min: 10.0,
-              max: 30.0,
-              divisions: 10,
-              label: _currentFontSize.round().toString(),
-              onChanged: (double value) {
-                setState(() {
-                  _currentFontSize = value;
-                });
-              },
-              onChangeEnd: (double value) {
-                _saveFontSize(value);  // 글씨 크기를 저장
+            Consumer<FontSizeProvider>(
+              builder: (context, fontSizeProvider, child) {
+                return Slider(
+                  value: fontSizeProvider.fontSize,
+                  min: 10.0,
+                  max: 30.0,
+                  divisions: 10,
+                  label: fontSizeProvider.fontSize.round().toString(),
+                  onChanged: (double value) {
+                    setState(() {
+                      _currentFontSize = value;
+                    });
+                    fontSizeProvider.updateFontSize(value); // Provider 업데이트
+                  },
+                );
               },
             ),
             SizedBox(height: 20),
-            Text(
-              '예시 텍스트',
-              style: TextStyle(fontSize: _currentFontSize),
+            Consumer<FontSizeProvider>(
+              builder: (context, fontSizeProvider, child) {
+                return Text(
+                  '예시 텍스트',
+                  style: TextStyle(fontSize: fontSizeProvider.fontSize),
+                );
+              },
             ),
           ],
         ),
