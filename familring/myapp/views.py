@@ -472,17 +472,43 @@ def question_list(request):
 # 답변 저장하기
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def save_answer(request):
-    question_id = request.data.get('question_id')
-    answer_text = request.data.get('answer')
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        question_id = data.get('question_id')
+        answer_text = data.get('answer')
 
-    if not question_id or not answer_text:
-        return Response({"error": "question_id and answer are required."}, status=status.HTTP_400_BAD_REQUEST)
+        # 전달된 데이터 확인
+        print(f"Received question_id: {question_id}, answer: {answer_text}")
+        try:
+            # 해당하는 질문을 찾아 답변 생성
+            question = DailyQuestion.objects.get(id=question_id)
+            answer = Answer.objects.create(question=question, answer=answer_text)
+            return JsonResponse({'id': answer.id, 'status': 'Answer saved successfully'})
+        except DailyQuestion.DoesNotExist:
+            return JsonResponse({'error': 'Question does not exist'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
-    answer = Answer(question_id=question_id, answer=answer_text)
-    answer.save()
-    return Response({"message": "Answer saved successfully."}, status=status.HTTP_201_CREATED)
 
+# 답변 가져오기
+@api_view(['GET'])
+@permission_classes([AllowAny])  # 모든 사용자에게 접근 허용
+def get_answer(request, question_id):
+    try:
+        # 특정 질문에 해당하는 답변을 조회
+        answer = Answer.objects.get(question__id=question_id)
+        return JsonResponse({
+            'question_id': answer.question.id,
+            'answer': answer.answer,
+            'created_at': answer.created_at
+        }, status=200)
+    except Answer.DoesNotExist:
+        return JsonResponse({'error': 'Answer does not exist'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
