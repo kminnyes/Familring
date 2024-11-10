@@ -23,15 +23,16 @@ from rest_framework.permissions import IsAuthenticated
 from django.middleware.csrf import get_token
 from .models import UserFontSetting
 
-
+#csrf 토큰
 @api_view(['GET'])
 def get_csrf_token(request):
     csrf_token = get_token(request)
     return Response({'csrfToken': csrf_token})
 
-# 회원가입
+
 from rest_framework.permissions import AllowAny
 
+# 회원가입
 @api_view(['POST'])
 @permission_classes([AllowAny])  # 인증이 필요하지 않도록 설정
 def register(request):
@@ -217,15 +218,27 @@ def update_profile(request):
     return Response(serializer.errors, status=400)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_all_users(request):
     cUser = request.user  # 요청한 사용자
-    users = User.objects.exclude(id=cUser.id)  # 요청한 사용자를 제외한 사용자
+
+    # 요청한 사용자를 제외한 사용자 목록
+    users = User.objects.exclude(id=cUser.id)
+
+    # 가족이 이미 있는 사용자 ID 가져오기
+    family_members = FamilyList.objects.values_list('user_id', flat=True)
+
+    # 가족이 있는 사용자를 제외
+    users = users.exclude(id__in=family_members)
+
+    # 직렬화 및 응답
     serializer = UserSerializer(users, many=True)
     return Response(
         serializer.data,
         status=200,
         content_type='application/json; charset=utf-8'
     )
+
 # 가족 생성 API
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -588,8 +601,6 @@ def get_family_events(request):
     events = Event.objects.filter(family_id=family_id)
     serializer = EventSerializer(events, many=True)
     return Response(serializer.data)
-
-
 
 
 #캘린더 이벤트 삭제하기
