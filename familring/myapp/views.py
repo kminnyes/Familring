@@ -476,20 +476,53 @@ def question_list(request):
 def save_answer(request):
     if request.method == 'POST':
         data = json.loads(request.body)
+
+        # 디버깅 로그
+        print("save_answer 호출됨 - Received data:", data)
+
         question_id = data.get('question_id')
         answer_text = data.get('answer')
+        user_id = data.get('user_id')
+        family_id = data.get('family_id')
 
-        # 전달된 데이터 확인
-        print(f"Received question_id: {question_id}, answer: {answer_text}")
+        # 전달된 데이터 확인 로그
+        print(f"전달받은 데이터 - question_id: {question_id}, answer: {answer_text}, user_id: {user_id}, family_id: {family_id}")
+
         try:
-            # 해당하는 질문을 찾아 답변 생성
+            # 모델 조회 전 로그 추가
+            print("데이터베이스에서 유저, 질문, 가족 찾기 시도 중...")
+
+            user = User.objects.get(id=user_id)
+            print(f"User found: {user}")
+
             question = DailyQuestion.objects.get(id=question_id)
-            answer = Answer.objects.create(question=question, answer=answer_text)
-            return JsonResponse({'id': answer.id, 'status': 'Answer saved successfully'})
+            print(f"Question found: {question}")
+
+            family = Family.objects.get(family_id=family_id)
+            print(f"Family found: {family}")
+
+            # 답변 생성
+            answer = Answer.objects.create(question=question, answer=answer_text, user=user, family=family)
+            print("답변 저장 성공")
+
+            return JsonResponse({'id': answer.id, 'status': 'Answer saved successfully'}, status=201)
+
+        except User.DoesNotExist:
+            print("오류: 해당 유저를 찾을 수 없음")
+            return JsonResponse({'error': 'User does not exist'}, status=404)
+
         except DailyQuestion.DoesNotExist:
+            print("오류: 해당 질문을 찾을 수 없음")
             return JsonResponse({'error': 'Question does not exist'}, status=404)
+
+        except Family.DoesNotExist:
+            print("오류: 해당 가족을 찾을 수 없음")
+            return JsonResponse({'error': 'Family does not exist'}, status=404)
+
         except Exception as e:
+            print("예상치 못한 오류:", str(e))
             return JsonResponse({'error': str(e)}, status=500)
+
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
@@ -498,17 +531,34 @@ def save_answer(request):
 @permission_classes([AllowAny])  # 모든 사용자에게 접근 허용
 def get_answer(request, question_id):
     try:
-        # 특정 질문에 해당하는 답변을 조회
-        answer = Answer.objects.get(question__id=question_id)
-        return JsonResponse({
+        # 특정 질문에 대한 모든 답변을 조회
+        answers = Answer.objects.filter(question__id=question_id)
+
+        # 답변이 없는 경우 처리
+        if not answers.exists():
+            return JsonResponse({'error': '해당 질문에 대한 답변이 없습니다.'}, status=404)
+
+        # 모든 답변을 JSON 리스트로 변환
+        answer_list = [{
             'question_id': answer.question.id,
             'answer': answer.answer,
-            'created_at': answer.created_at
-        }, status=200)
+            'created_at': answer.created_at.strftime('%Y-%m-%d %H:%M:%S'),  # 날짜 형식을 문자열로 변환
+            'user_nickname': answer.user.nickname if answer.user else "알 수 없음"  # 사용자 닉네임 가져오기
+        } for answer in answers]
+
+        return JsonResponse(answer_list, safe=False, status=200)  # 리스트를 반환할 때는 safe=False 설정
     except Answer.DoesNotExist:
         return JsonResponse({'error': 'Answer does not exist'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+# 답변 횟수 제한
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_answer_exists(request, question_id, user_id):
+    answer_exists = Answer.objects.filter(question_id=question_id, user_id=user_id).exists()
+    return JsonResponse({'answer_exists': answer_exists})
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
