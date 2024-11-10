@@ -13,36 +13,15 @@ class TodayQuestion extends StatefulWidget {
 class _TodayQuestionState extends State<TodayQuestion> {
   String question = "...Loading?"; // 질문
   String answer = ""; // 답변
-  Timer? _timer;
-  Duration interval = Duration(minutes:30);
 
   @override
   void initState() {
     super.initState();
     _openAi();
-    _startQuestionGeneration();//질문 생성 시작
   }
 
-  // 주기적으로 질문을 생성하는 함수
-  void _startQuestionGeneration() {
-    // 처음 질문을 즉시 생성
-    _openAi();
-
-    // 설정한 주기마다 질문을 생성
-    _timer = Timer.periodic(interval, (Timer timer) {
-      _openAi();
-
-    }) as Timer?;
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel(); // 위젯이 제거될 때 타이머를 중지
-    super.dispose();
-  }
-
-String questionId=""; //질문 ID를 저장할 변수 추가
-Future<void> _openAi() async {
+  String questionId=""; //질문 ID를 저장할 변수 추가
+  Future<void> _openAi() async {
     final apiKey = dotenv.env['OPENAI_API_KEY']!;
     final response = await http.post(
       Uri.parse('https://api.openai.com/v1/chat/completions'),
