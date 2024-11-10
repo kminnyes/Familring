@@ -120,6 +120,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
   }
 
+  // family_id를 가져오는 함수
+  Future<void> _getFamilyId(String token) async {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/family_list/'),  // 수정된 엔드포인트
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      int? familyId = data['family_id'];
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (familyId != null) {
+        await prefs.setInt('family_id', familyId);
+        print('Family ID 저장됨: $familyId');
+      } else {
+        print('family_id를 찾을 수 없음');
+      }
+    } else {
+      print('family_list에서 family_id를 가져오는 데 실패');
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
