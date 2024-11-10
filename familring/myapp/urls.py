@@ -38,6 +38,7 @@ urlpatterns = [
     path('family/<int:family_id>/delete/', delete_family, name='delete_family'),
     path('delete_account/', delete_account, name='delete_account'),
     path('family/members/', family_members, name='family_members'),
+    path('family_list/', views.get_family_id, name='get_family_id'),
 
     # 질문 관련
     # path('api/generate_question/', GenerateQuestionView.as_view(), name='generate_question'),
@@ -53,7 +54,8 @@ urlpatterns = [
     path('get-family-events/', get_family_events, name='get_family_events'),
     path('delete-event/', views.delete_event, name='delete_event'),
     path('update-event/', views.update_event, name='update_event'),
-
+    path('get-today-events/', views.get_today_events, name='get_today_events'),
+    path('family/members/', views.get_family_members, name='get_family_members'),
 
     #계정관련
     path('delete_account/', delete_account, name='delete_account'),

@@ -709,3 +709,67 @@ def font_setting(request):
             setting.save()
             return Response({'message': 'Font size updated successfully'})
         return Response({'error': 'Invalid font size'}, status=400)
+
+
+
+#오늘의 일정 가져오기
+from django.utils import timezone
+from django.http import JsonResponse
+from .models import Event
+
+def get_today_events(request):
+    family_id = request.GET.get('family_id')
+    today = timezone.now().date()
+
+    if family_id is None:
+        return JsonResponse({"error": "family_id is required"}, status=400)
+
+    events = Event.objects.filter(
+        family_id=family_id,
+        start_date__lte=today,
+        end_date__gte=today
+    )
+
+    events_data = [
+        {
+            "event_type": event.event_type,
+            "nickname": event.nickname,
+            "event_content": event.event_content,
+            "start_date": event.start_date.isoformat(),
+            "end_date": event.end_date.isoformat()
+        }
+        for event in events
+    ]
+    return JsonResponse(events_data, safe=False)
+
+
+#가족 멤버 가져오기
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from .models import FamilyList  # 모델 이름에 따라 수정 필요
+
+@require_GET
+def get_family_members(request):
+    try:
+        family_id = request.GET.get('family_id')
+        if not family_id:
+            return JsonResponse({"error": "Family ID is required"}, status=400)
+
+        members = FamilyList.objects.filter(family_id=family_id).values("id", "nickname")
+        return JsonResponse(list(members), safe=False)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_family_id(request):
+    try:
+        # FamilyList에서 로그인한 사용자의 family_id 가져오기
+        family_list_entry = FamilyList.objects.get(user=request.user)
+        family_id = family_list_entry.family_id
+        return Response({"family_id": family_id}, status=200)
+    except FamilyList.DoesNotExist:
+        return Response({"error": "이 사용자에 대한 Family ID가 없습니다."}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

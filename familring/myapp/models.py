@@ -163,3 +163,4 @@ class Event(models.Model):
 class UserFontSetting(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     font_size = models.FloatField(default=16.0)
+
