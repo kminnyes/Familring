@@ -48,6 +48,8 @@ urlpatterns = [
     #답변 관련
     path('save_answer/', save_answer, name='save_answer'),
     path('get_answer/<int:question_id>/', views.get_answer, name='get_answer'),
+    path('check_answer_exists/<int:question_id>/<int:user_id>/', views.check_answer_exists, name='check_answer_exists'),
+
 
     #캘린더
     path('add-event/', add_event, name='add_event'),

@@ -53,7 +53,7 @@ Future<void> _openAi() async {
       body: jsonEncode({
         'model': 'gpt-3.5-turbo',
         'messages': [
-          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in korean. just create one question'},
+          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in korean. just one sentence'},
           // {'role': 'user', 'content': 'What is Seoul?'}
         ],
         'max_tokens': 100,

@@ -49,12 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
         String accessToken = responseData['access'];
         String refreshToken = responseData['refresh'];
         int userId = responseData['user_id'];
+        int? familyId = responseData['family_id'];
 
         // 토큰 및 사용자 정보 저장
-        await saveUserInfo(accessToken, refreshToken, userId);
-
-        // family_id 초기화
-        await _getFamilyId(accessToken);
+        await saveUserInfo(accessToken, refreshToken, userId, familyId);
 
         // 로그인 성공 후 닉네임 초기화
         await initializeNickname(accessToken);
@@ -79,31 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = '로그인 중 오류가 발생했습니다. 다시 시도해주세요.';
       });
-    }
-  }
-
-  // family_id를 가져오는 함수
-  Future<void> _getFamilyId(String token) async {
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-    final response = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/family_list/'), // family_list API URL
-      headers: headers,
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      int? familyId = data['family_id'];
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      if (familyId != null) {
-        await prefs.setInt('family_id', familyId);
-        print('Family ID saved: $familyId');
-      } else {
-        print('No family_id found in family_list');
-      }
-    } else {
-      print('Failed to load family_id from family_list');
     }
   }
 
@@ -133,12 +106,18 @@ class _LoginScreenState extends State<LoginScreen> {
       String accessToken,
       String refreshToken,
       int userId,
+      int? familyId,
       ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
     await prefs.setString('refresh_token', refreshToken);
     await prefs.setInt('user_id', userId);
+    if (familyId != null) {
+      await prefs.setInt('family_id', familyId);
+    }
     print('User ID saved: $userId');
+    print('Family ID saved: ${familyId ?? "No family_id"}');
+
   }
 
   @override
