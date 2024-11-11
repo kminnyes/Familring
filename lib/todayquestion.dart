@@ -97,6 +97,12 @@ class _TodayQuestionState extends State<TodayQuestion> {
       return;
     }
 
+    // 답변이 비어있는지 확인하고 알림 띄우기
+    if (answer.trim().isEmpty) {
+      _showTemporarySnackBar('답변을 작성해 주세요');
+      return;
+    }
+
     final response = await http.post(
       Uri.parse('http://127.0.0.1:8000/api/save_answer/'),
       headers: {
@@ -118,6 +124,37 @@ class _TodayQuestionState extends State<TodayQuestion> {
     }
   }
 
+  // 알림을 띄우는 함수
+  Future<void> _showAlertDialog(String title, String message) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  void _showTemporarySnackBar(String message) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      duration: Duration(seconds: 1), // 1초 동안 표시
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,6 +162,16 @@ class _TodayQuestionState extends State<TodayQuestion> {
         title: Text('#두 번째 질문'),
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            if (answer.trim().isEmpty) {
+              _showTemporarySnackBar('답변을 작성해 주세요.');
+            } else {
+              Navigator.of(context).pop(); // 답변이 작성된 경우에만 뒤로 이동
+            }
+          },
+        ),
         iconTheme: IconThemeData(
           color: Colors.black,
         ),
@@ -165,7 +212,15 @@ class _TodayQuestionState extends State<TodayQuestion> {
             ElevatedButton(
               onPressed: () async {
                 print('Question: $question');
-                print('Answer: $answer');
+                print('Answer: $answer');  // answer 값 확인
+
+                // answer가 비어있는지 확인
+                if (answer.trim().isEmpty) {
+                  _showTemporarySnackBar('답변을 작성해 주세요.');
+                  return;
+                }
+
+                // answer가 비어있지 않을 경우에만 _saveAnswerToDB 호출
                 await _saveAnswerToDB(answer);
 
                 showDialog(
@@ -200,8 +255,10 @@ class _TodayQuestionState extends State<TodayQuestion> {
               ),
             ),
           ],
+
         ),
       ),
     );
   }
 }
+

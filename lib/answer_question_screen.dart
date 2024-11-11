@@ -7,9 +7,10 @@ class AnswerQuestionScreen extends StatefulWidget {
   final String question;
   final int questionId;
   final String questionNumber;
+  final int familyId;
 
 
-  AnswerQuestionScreen({required this.question, required this.questionId, required this.questionNumber});
+  AnswerQuestionScreen({required this.question, required this.questionId, required this.questionNumber,  required this.familyId});
 
   @override
   _AnswerQuestionScreenState createState() => _AnswerQuestionScreenState();
@@ -35,30 +36,27 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   void initState() {
     super.initState();
     _fetchAnswers();
-    _loadUserId();
-    _loadFamilyId();
+    _loadUserAndFamilyIds();
   }
 
-  Future<void> _loadUserId() async {
+  Future<void> _loadUserAndFamilyIds() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       userId = prefs.getInt('user_id');
-      print('userId loaded: $userId');
-    });
-  }
-
-  Future<void> _loadFamilyId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
       familyId = prefs.getInt('family_id');
-      print('Family ID loaded: $familyId');
+      print('userId loaded: $userId');
+      print('familyId loaded: $familyId');
     });
   }
 
   Future<void> _fetchAnswers() async {
+
     try {
+      // questionId와 familyId 확인
+      print('Fetching answers for questionId: ${widget.questionId}, familyId: ${widget.familyId}');
+
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/get_answer/${widget.questionId}/'),
+        Uri.parse('http://127.0.0.1:8000/api/get_answer/${widget.questionId}/${widget.familyId}/'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -68,32 +66,37 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
       print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body); // JSON 배열로 파싱
+        final List<dynamic> data = jsonDecode(response.body);
+        print('Parsed data length: ${data.length}'); // 데이터 배열 길이 확인
+        print('Parsed data content: $data'); // 전체 데이터 출력
 
         setState(() {
-          answers = data.map((item) => item['answer'] as String? ?? '')
-              .toList(); // null 체크 후 기본값으로 대체
-          userNicknames =
-              data.map((item) => item['user_nickname'] as String? ?? '')
-                  .toList(); // null 체크 후 기본값으로 대체
-          answerIds =
-              data.map((item) => item['id'] as int).toList(); // answer ID 추가
-          userIds =
-              data.map((item) => item['user_id'] as int).toList(); // user ID 추가
+          answers = data.map((item) {
+            print('Parsing answer: ${item['answer']}'); // 각 답변 출력
+            return item['answer'] as String? ?? '';
+          }).toList();
 
-          // 추가 디버깅: 각 데이터 항목을 출력
-          for (var item in data) {
-            print("Parsed answer: ${item['answer'] ?? 'null'}");
-            print("Parsed user_nickname: ${item['user_nickname'] ?? 'null'}");
-            print("Parsed question_id: ${item['question_id'] ?? 'null'}");
-            print("Parsed answer_id: ${item['id'] ?? 'null'}"); // answer ID 확인
-            print("Parsed user_id: ${item['user_id'] ?? 'null'}"); // user ID 확인
-          }
+          userNicknames = data.map((item) {
+            print('Parsing user nickname: ${item['user_nickname']}'); // 닉네임 출력
+            return item['user_nickname'] as String? ?? '';
+          }).toList();
+
+          answerIds = data.map((item) {
+            print('Parsing answer ID: ${item['id']}'); // 답변 ID 출력
+            return item['id'] as int;
+          }).toList();
+
+          userIds = data.map((item) {
+            print('Parsing user ID: ${item['user_id']}'); // 사용자 ID 출력
+            return item['user_id'] as int;
+          }).toList();
 
           isLoading = false;
         });
       } else {
         print('Failed to fetch answers: ${response.reasonPhrase}');
+        print('Response status code: ${response.statusCode}'); // 상태 코드 확인
+        print('Response body on failure: ${response.body}'); // 실패 시 응답 본문 출력
         setState(() {
           isLoading = false;
         });
@@ -105,6 +108,7 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
       });
     }
   }
+
 
   Future<bool> _checkAnswerExists(int questionId, int userId) async {
     try {
@@ -130,22 +134,21 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   }
 
 
-  Future<void> _saveAnswerToDB(int userId, int familyId) async {
+  Future<void> _saveAnswerToDB() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_id'); // SharedPreferences에서 user_id 불러오기
+    int? familyId = prefs.getInt('family_id'); // SharedPreferences에서 family_id 불러오기
+
+    // SharedPreferences에서 불러온 값이 null인 경우 로그 출력
+    if (userId == null || familyId == null) {
+      print("Error: userId or familyId is null. Cannot save answer.");
+      _showAlertDialog('알림', '유저 ID 또는 가족 ID가 없습니다.');
+      return;
+    }
+
     final answerText = _answerController.text.trim();
-    if (answerText.isEmpty) {
-      _showAlertDialog('알림', '답변을 작성해 주세요.');
-      return;
-    }
-
-    // 이미 답변했는지 확인
-    bool answerExists = await _checkAnswerExists(widget.questionId, userId);
-    if (answerExists) {
-      _showAlertDialog('알림', '답변을 이미 하셨어요.');
-      return;
-    }
-
     try {
-      print('Sending answer to server...');
+      print('Sending answer to server with user_id: $userId and family_id: $familyId');
       final response = await http.post(
         Uri.parse('http://127.0.0.1:8000/api/save_answer/'),
         headers: {
@@ -153,8 +156,8 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
         },
         body: jsonEncode({
           'question_id': widget.questionId,
-          'answer': _answerController.text,
-          'user_id': userId,
+          'answer': answerText,
+          'user_id': userId,  // user_id 추가
           'family_id': familyId,
         }),
       );
@@ -164,8 +167,8 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Answer saved successfully');
-        _fetchAnswers(); // 새로 등록된 답변 포함하여 다시 불러오기
-        _answerController.clear(); // 답변 입력창 초기화
+        _fetchAnswers();
+        _answerController.clear();
         _showAlertDialog('알림', '답변이 등록되었습니다.');
       } else {
         print('Failed to save answer: ${response.reasonPhrase}');

@@ -43,11 +43,11 @@ urlpatterns = [
     # 질문 관련
     # path('api/generate_question/', GenerateQuestionView.as_view(), name='generate_question'),
     path('save_question/', save_question, name='save_question'),
-    path('question_list/', views.question_list, name='question_list'),
+    path('question_list/<int:family_id>/', views.question_list, name='question_list'),
 
     #답변 관련
     path('save_answer/', save_answer, name='save_answer'),
-    path('get_answer/<int:question_id>/', views.get_answer, name='get_answer'),
+    path('get_answer/<int:question_id>/<int:family_id>/', views.get_answer, name='get_answer'),
     path('check_answer_exists/<int:question_id>/<int:user_id>/', views.check_answer_exists, name='check_answer_exists'),
     path('update_answer/<int:answer_id>/', views.update_answer, name='update_answer'),
 

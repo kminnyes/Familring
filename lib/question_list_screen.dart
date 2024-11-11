@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'answer_question_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QuestionListScreen extends StatefulWidget {
   @override
@@ -11,40 +12,59 @@ class QuestionListScreen extends StatefulWidget {
 class _QuestionListScreenState extends State<QuestionListScreen> {
   List<Map<String, dynamic>> questionsAndAnswers = [];
   Map<String, dynamic>? latestQuestion;
-
+  int? familyId;
   get index => null; // 가장 최근의 질문을 저장
 
   @override
   void initState() {
     super.initState();
     fetchQuestions();
+    _loadFamilyId();
+  }
+
+  Future<void> _loadFamilyId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      familyId = prefs.getInt('family_id'); // SharedPreferences에서 family_id 불러오기
+    });
+    print("Family ID loaded: $familyId"); // family_id 확인을 위한 로그
+    if (familyId != null) {
+      fetchQuestions(); // familyId를 불러온 후에 질문 가져오기
+    }
   }
 
   // Django 서버에서 질문 리스트 가져오는 함수
   Future<void> fetchQuestions() async {
+    if (familyId == null) {
+      print("Family ID is null. Cannot fetch questions.");
+      return;
+    }
+
     try {
-      final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/question_list/')); // 실제 서버 주소로 변경 필요
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/question_list/$familyId/'),
+      );
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
 
-        setState(() {
-          if (data.isNotEmpty) {
-            // 가장 최근의 질문을 최신순으로 가져온 리스트의 첫 번째 항목으로 설정
-            latestQuestion = {
-              'id': data[0]['id'],
-              'question': data[0]['question'],
-              'answer': ''
-            };
-            // 나머지 질문은 일반 질문 리스트에 추가
-            questionsAndAnswers = data.skip(1).map((question) => {
-              'id': question['id'],
-              'question': question['question'],
-              'answer': ''
-            }).toList();
-            questionsAndAnswers.sort((a, b) => b['id'].compareTo(a['id'])); // id 기준으로 내림차순 정렬
-          }
-        });
+        if (mounted) {
+          setState(() {
+            if (data.isNotEmpty) {
+              latestQuestion = {
+                'id': data[0]['id'],
+                'question': data[0]['question'],
+                'answer': ''
+              };
+              questionsAndAnswers = data.skip(1).map((question) => {
+                'id': question['id'],
+                'question': question['question'],
+                'answer': ''
+              }).toList();
+              questionsAndAnswers.sort((a, b) => b['id'].compareTo(a['id']));
+            }
+          });
+        }
       } else {
         print('Failed to load questions: ${response.reasonPhrase}');
       }
@@ -52,6 +72,7 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
       print('Error fetching questions: $e');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +153,9 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                                   builder: (context) => AnswerQuestionScreen(
                                     question: latestQuestion!['question'],
                                     questionId: latestQuestion!['id'] ?? 0,
-                                    questionNumber: "#${index + 1}",
+                                    questionNumber: "#${(index ?? 0) + 1}",
+                                    familyId: familyId ?? 0,
+
                                     ),
                                   ),
                                 );
@@ -183,7 +206,8 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                           builder: (context) => AnswerQuestionScreen(
                             question: qa['question'],
                             questionId: qa['id'] ?? 0,
-                            questionNumber: "#${index + 1}",
+                            questionNumber: "#${(index ?? 0) + 1}",
+                            familyId: familyId ?? 0,
                           ),
                         ),
                       );
