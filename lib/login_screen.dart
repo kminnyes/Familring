@@ -17,17 +17,17 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNickname(); // 화면 로드 시 닉네임을 불러옵니다.
+    //_loadNickname(); // 화면 로드 시 닉네임을 불러옵니다.
   }
 
 
   // 닉네임 불러오기
-  Future<void> _loadNickname() async {
+  /*Future<void> _loadNickname() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _nickname = prefs.getString('nickname');
     });
-  }
+  }*/
 
   // 로그인 함수
   void _login() async {
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 로그인 성공 후 닉네임 초기화
         await initializeNickname(accessToken);
-        await _loadNickname();
+        //await _loadNickname();
 
         setState(() {
           _errorMessage = '';
