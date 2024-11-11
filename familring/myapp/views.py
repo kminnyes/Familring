@@ -91,6 +91,7 @@ from django.shortcuts import get_object_or_404
 @permission_classes([IsAuthenticated])
 def get_bucketlists(request):
     user = request.user
+    username = user.username
     family_list_entry = FamilyList.objects.filter(user=user).first()
 
     # 개인 버킷리스트
@@ -108,7 +109,8 @@ def get_bucketlists(request):
     return Response(
         {
             'personal_bucket_list': personal_serializer.data,
-            'family_bucket_list': family_serializer.data
+            'family_bucket_list': family_serializer.data,
+            'username' : username
         },
         status=status.HTTP_200_OK,
         content_type='application/json; charset=utf-8'
