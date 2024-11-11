@@ -17,8 +17,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNickname();  // 화면 로드 시 닉네임을 불러옵니다.
+    _loadNickname(); // 화면 로드 시 닉네임을 불러옵니다.
   }
+
 
   // 닉네임 불러오기
   Future<void> _loadNickname() async {
@@ -49,10 +50,12 @@ class _LoginScreenState extends State<LoginScreen> {
         String accessToken = responseData['access'];
         String refreshToken = responseData['refresh'];
         int userId = responseData['user_id'];
-        int? familyId = responseData['family_id'];
 
         // 토큰 및 사용자 정보 저장
-        await saveUserInfo(accessToken, refreshToken, userId, familyId);
+        await saveUserInfo(accessToken, refreshToken, userId);
+
+        // 로그인 성공 후 family_id 가져오기
+        await _getFamilyId(accessToken); // 여기서 accessToken 전달
 
         // 로그인 성공 후 닉네임 초기화
         await initializeNickname(accessToken);
@@ -106,19 +109,41 @@ class _LoginScreenState extends State<LoginScreen> {
       String accessToken,
       String refreshToken,
       int userId,
-      int? familyId,
       ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
     await prefs.setString('refresh_token', refreshToken);
     await prefs.setInt('user_id', userId);
-    if (familyId != null) {
-      await prefs.setInt('family_id', familyId);
-    }
-    print('User ID saved: $userId');
-    print('Family ID saved: ${familyId ?? "No family_id"}');
 
+    print('User ID saved: $userId');
   }
+
+
+  // family_id를 가져오는 함수
+  Future<void> _getFamilyId(String token) async {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/family_list/'),  // 수정된 엔드포인트
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      int? familyId = data['family_id'];
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (familyId != null) {
+        await prefs.setInt('family_id', familyId);
+        print('Family ID 저장됨: $familyId');
+      } else {
+        print('family_id를 찾을 수 없음');
+      }
+    } else {
+      print('family_list에서 family_id를 가져오는 데 실패');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

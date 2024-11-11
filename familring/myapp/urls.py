@@ -49,6 +49,7 @@ urlpatterns = [
     path('save_answer/', save_answer, name='save_answer'),
     path('get_answer/<int:question_id>/', views.get_answer, name='get_answer'),
     path('check_answer_exists/<int:question_id>/<int:user_id>/', views.check_answer_exists, name='check_answer_exists'),
+    path('update_answer/<int:answer_id>/', views.update_answer, name='update_answer'),
 
 
     #캘린더

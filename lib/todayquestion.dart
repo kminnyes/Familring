@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:async'; //타이머 패키지
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TodayQuestion extends StatefulWidget {
   @override
@@ -13,36 +12,29 @@ class TodayQuestion extends StatefulWidget {
 class _TodayQuestionState extends State<TodayQuestion> {
   String question = "...Loading?"; // 질문
   String answer = ""; // 답변
-  Timer? _timer;
-  Duration interval = Duration(minutes:30);
+  String questionId = ""; // 질문 ID
+  int? familyId; // family_id 변수 추가
+  int? userId; // user_id 변수 추가
 
   @override
   void initState() {
     super.initState();
-    _openAi();
-    _startQuestionGeneration();//질문 생성 시작
+    _loadUserIdAndFamilyId().then((_) {
+      _openAi(); // userId와 familyId가 로드된 후에 질문을 생성
+    });
   }
 
-  // 주기적으로 질문을 생성하는 함수
-  void _startQuestionGeneration() {
-    // 처음 질문을 즉시 생성
-    _openAi();
-
-    // 설정한 주기마다 질문을 생성
-    _timer = Timer.periodic(interval, (Timer timer) {
-      _openAi();
-
-    }) as Timer?;
+  Future<void> _loadUserIdAndFamilyId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userId = prefs.getInt('user_id');
+      familyId = prefs.getInt('family_id');
+      print('User ID loaded: $userId');
+      print('Family ID loaded: $familyId');
+    });
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel(); // 위젯이 제거될 때 타이머를 중지
-    super.dispose();
-  }
-
-String questionId=""; //질문 ID를 저장할 변수 추가
-Future<void> _openAi() async {
+  Future<void> _openAi() async {
     final apiKey = dotenv.env['OPENAI_API_KEY']!;
     final response = await http.post(
       Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -53,63 +45,78 @@ Future<void> _openAi() async {
       body: jsonEncode({
         'model': 'gpt-3.5-turbo',
         'messages': [
-          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in korean. just one sentence'},
-          // {'role': 'user', 'content': 'What is Seoul?'}
+          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in Korean. Just one sentence.'}
         ],
         'max_tokens': 100,
       }),
     );
 
     if (response.statusCode == 200) {
-      var data = jsonDecode(utf8.decode(response.bodyBytes)); //한국어로 변경
+      var data = jsonDecode(utf8.decode(response.bodyBytes));
       setState(() {
         question = data['choices'][0]['message']['content'] ?? '질문을 불러오는 데 실패했습니다';
-        questionId = data['choices'][0]['id'] ?? 'UnknownID'; //questionId를 데이터에서 받아와서 저장
-        print('API sucess: $question'); // 로그 추가
+        print('API success: $question');
       });
-      await _saveQuestionToDB(question);
+      await _saveQuestionToDB(question, familyId); // 질문을 DB에 저장
     } else {
       setState(() {
         question = 'Error: ${response.reasonPhrase}';
-        print('API fail: ${response.reasonPhrase}'); // 로그 추가
+        print('API fail: ${response.reasonPhrase}');
       });
     }
   }
 
+  Future<void> _saveQuestionToDB(String question , int? familyId) async {
+    if (familyId == null) {
+      print("Family ID is null. Cannot save question.");
+      return;
+    }
 
-  Future<void> _saveQuestionToDB(String question) async {
     final response = await http.post(
       Uri.parse('http://127.0.0.1:8000/api/save_question/'), // Django 서버 URL로 변경
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'question': question}),
+      body: jsonEncode({'question': question, 'family_id': familyId}),
     );
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      print('Question saved successfully with ID: ${data['id']}');
+      setState(() {
+        questionId = data['id'].toString(); // 서버에서 반환한 question_id를 저장
+      });
+      print('Question saved successfully with ID: $questionId');
     } else {
       print('Failed to save question: ${response.reasonPhrase}');
     }
   }
 
-  Future<void> _saveAnswerToDB(String question, String answer) async {
+  Future<void> _saveAnswerToDB(String answer) async {
+    if (userId == null || familyId == null || questionId.isEmpty) {
+      print("User ID, Family ID, or Question ID is null. Cannot save answer.");
+      return;
+    }
+
     final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/save_answer/'), // Django 서버의 URL로 수정
+      Uri.parse('http://127.0.0.1:8000/api/save_answer/'),
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'question_id': questionId, 'answer': answer}),
+      body: jsonEncode({'question_id': questionId, 'answer': answer, 'user_id': userId, 'family_id': familyId}),
     );
 
     if (response.statusCode == 200) {
-      print('Answer saved successfully');
+      var data = jsonDecode(response.body);
+      if (mounted) {  // mounted가 true일 때만 setState() 호출
+        setState(() {
+          questionId = data['id'].toString();
+        });
+        print('Answer saved successfully with ID: $questionId');
+      }
     } else {
       print('Failed to save answer: ${response.reasonPhrase}');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -117,9 +124,9 @@ Future<void> _openAi() async {
       appBar: AppBar(
         title: Text('#두 번째 질문'),
         backgroundColor: Colors.white,
-        elevation: 0, // 앱바의 그림자를 제거
+        elevation: 0,
         iconTheme: IconThemeData(
-          color: Colors.black, // 앱바 아이콘 색상
+          color: Colors.black,
         ),
       ),
       backgroundColor: Colors.white,
@@ -156,14 +163,11 @@ Future<void> _openAi() async {
             ),
             SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () async { // async를 추가한 람다 함수
+              onPressed: () async {
                 print('Question: $question');
                 print('Answer: $answer');
+                await _saveAnswerToDB(answer);
 
-                // 서버로 답변 저장 요청
-                await _saveAnswerToDB(questionId, answer);
-
-                // 알림을 표시하고 TodayQuestion과 QuestionNotification 화면을 pop하여 HomeScreen으로 전환
                 showDialog(
                   context: context,
                   builder: (BuildContext context) {
@@ -173,8 +177,8 @@ Future<void> _openAi() async {
                       actions: [
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).pop(); // 다이얼로그 닫기
-                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false); // HomeScreen으로 돌아가기
+                            Navigator.of(context).pop();
+                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
                           },
                           child: Text('확인'),
                         ),
@@ -184,7 +188,7 @@ Future<void> _openAi() async {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color.fromARGB(255, 255, 207, 102), // 버튼 색상
+                backgroundColor: Color.fromARGB(255, 255, 207, 102),
                 padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -195,10 +199,7 @@ Future<void> _openAi() async {
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),
-
-
           ],
-
         ),
       ),
     );
