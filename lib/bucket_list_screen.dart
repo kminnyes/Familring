@@ -11,6 +11,7 @@ class BucketListScreen extends StatefulWidget {
 class _BucketListScreenState extends State<BucketListScreen> {
   List<dynamic> _familyBucketList = [];
   List<dynamic> _personalBucketList = [];
+  String username = "";
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
         setState(() {
           _familyBucketList = data['family_bucket_list'];
           _personalBucketList = data['personal_bucket_list'];
+          username = data['username'];
         });
       } else {
         throw Exception('Failed to load bucket lists');
@@ -73,9 +75,9 @@ class _BucketListScreenState extends State<BucketListScreen> {
   }
 
   // 버킷리스트 완료 API 호출
-  void _completeBucketItem(int bucketId, bool isCompleted) async {
+  void _toggleCompleteBucketItem(int bucketId, bool isCompleted) async {
     try {
-      print('Completing bucket item with ID: $bucketId');
+      print('Toggling bucket item with ID: $bucketId');
 
       Map<String, String> headers = await _getHeaders();
       final response = await http.put(
@@ -86,14 +88,12 @@ class _BucketListScreenState extends State<BucketListScreen> {
       if (response.statusCode == 200) {
         _fetchBucketLists(); // 성공적으로 완료된 후, 목록을 다시 로드
       } else {
-        throw Exception('Failed to complete bucket item');
+        throw Exception('Failed to toggle bucket item');
       }
     } catch (error) {
-      print('Error completing bucket item: $error');
+      print('Error toggling bucket item: $error');
     }
   }
-
-
 
   // 버킷리스트 추가 팝업
   void _showAddBucketDialog() {
@@ -152,6 +152,11 @@ class _BucketListScreenState extends State<BucketListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    int remainingGoals = _familyBucketList.where((item) => !item['is_completed']).length +
+        _personalBucketList.where((item) => !item['is_completed']).length;
+    int completedGoals = _familyBucketList.where((item) => item['is_completed']).length +
+        _personalBucketList.where((item) => item['is_completed']).length;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -174,75 +179,146 @@ class _BucketListScreenState extends State<BucketListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "가족 버킷리스트",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              // Status Summary
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "하고 싶은 것들이 ",
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+                            ),
+                            TextSpan(
+                              text: "$remainingGoals개",
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.orange),
+                            ),
+                            TextSpan(
+                              text: " 남았어요!",
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+                            ),
+                          ],
+                        ),
+                      ),
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "지금까지 ",
+                              style: TextStyle(fontSize: 18, color: Colors.black),
+                            ),
+                            TextSpan(
+                              text: "$completedGoals개",
+                              style: TextStyle(fontSize: 18, color: Colors.blue),
+                            ),
+                            TextSpan(
+                              text: "를 이뤘어요",
+                              style: TextStyle(fontSize: 18, color: Colors.black),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Image.asset('images/status_icon.png', width: 60), // Add status icon
+                ],
               ),
-              _familyBucketList.isEmpty
-                  ? Text("가족 버킷리스트가 없습니다.")
-                  : ListView.builder(
+              SizedBox(height: 20),
+              // Combined Bucket List
+              ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                itemCount: _familyBucketList.length,
+                itemCount: _familyBucketList.length + _personalBucketList.length,
                 itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(Icons.emoji_objects),
-                      title: Text(_familyBucketList[index]['bucket_title']),
-                      trailing: Checkbox(
-                        value: _familyBucketList[index]['is_completed'],
-                        onChanged: (bool? value) {
-                          if (value != null) {
-                            setState(() {
-                              _familyBucketList[index]['is_completed'] = value;
-                            });
-                            _completeBucketItem(_familyBucketList[index]['bucket_id'], value);
-                          }
-                        },
+                  final isFamily = index < _familyBucketList.length;
+
+                  final item = isFamily
+                      ? _familyBucketList[index]
+                      : _personalBucketList[index - _familyBucketList.length];
+                  final color = isFamily ? Colors.green : Colors.pink;
+                  final titlePrefix = isFamily
+                      ? "가족 목표"
+                      : username + "님의 개인 목표";
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    margin: EdgeInsets.symmetric(vertical: 5),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                titlePrefix,
+                                style: TextStyle(fontSize: 14, color: Colors.black54),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 5),
+                          Text(
+                            item['bucket_title'],
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
+                                });
+                              },
+                              child: Icon(
+                                item['is_completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                                size: 36,
+                                color: item['is_completed'] ? Colors.orange : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 },
               ),
               SizedBox(height: 20),
-              Text(
-                "개인 버킷리스트",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              _personalBucketList.isEmpty
-                  ? Text("개인 버킷리스트가 없습니다.")
-                  : ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _personalBucketList.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(Icons.emoji_objects),
-                      title: Text(_personalBucketList[index]['bucket_title']),
-                      trailing: Checkbox(
-                        value: _personalBucketList[index]['is_completed'],
-                        onChanged: (bool? value) {
-                          if (value != null) {
-                            setState(() {
-                              _personalBucketList[index]['is_completed'] = value;
-                            });
-                            _completeBucketItem(_personalBucketList[index]['bucket_id'], value);
-                          }
-                        },
-                      ),
+              // Add Bucket List Button
+              Center(
+                child: ElevatedButton(
+                  onPressed: _showAddBucketDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 255, 207, 102),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
                     ),
-                  );
-                },
+                    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                  ),
+                  child: Text(
+                    "버킷리스트 생성 하기",
+                    style: TextStyle(fontSize: 16, color: Colors.black),
+                  ),
+                ),
               ),
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBucketDialog,
-        backgroundColor: Color.fromARGB(255, 255, 207, 102),
-        child: Icon(Icons.add),
       ),
     );
   }

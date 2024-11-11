@@ -26,7 +26,7 @@ void main() async {
   runApp(
     ChangeNotifierProvider(
       create: (context) => FontSizeProvider()..loadFontSize(),
-      child: MyApp(initialRoute: token == null ? '/welcome' : '/home'),
+      child: MyApp(initialRoute: token == null ? '/login' : '/home'),
     ),
   );
 }

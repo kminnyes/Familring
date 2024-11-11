@@ -23,15 +23,16 @@ from rest_framework.permissions import IsAuthenticated
 from django.middleware.csrf import get_token
 from .models import UserFontSetting
 
-
+#csrf 토큰
 @api_view(['GET'])
 def get_csrf_token(request):
     csrf_token = get_token(request)
     return Response({'csrfToken': csrf_token})
 
-# 회원가입
+
 from rest_framework.permissions import AllowAny
 
+# 회원가입
 @api_view(['POST'])
 @permission_classes([AllowAny])  # 인증이 필요하지 않도록 설정
 def register(request):
@@ -90,6 +91,7 @@ from django.shortcuts import get_object_or_404
 @permission_classes([IsAuthenticated])
 def get_bucketlists(request):
     user = request.user
+    username = user.username
     family_list_entry = FamilyList.objects.filter(user=user).first()
 
     # 개인 버킷리스트
@@ -107,7 +109,8 @@ def get_bucketlists(request):
     return Response(
         {
             'personal_bucket_list': personal_serializer.data,
-            'family_bucket_list': family_serializer.data
+            'family_bucket_list': family_serializer.data,
+            'username' : username
         },
         status=status.HTTP_200_OK,
         content_type='application/json; charset=utf-8'
@@ -237,7 +240,7 @@ def get_all_users(request):
         status=200,
         content_type='application/json; charset=utf-8'
     )
-    
+
 # 가족 생성 API
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -702,8 +705,6 @@ def get_family_events(request):
     events = Event.objects.filter(family_id=family_id)
     serializer = EventSerializer(events, many=True)
     return Response(serializer.data)
-
-
 
 
 #캘린더 이벤트 삭제하기
