@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:async'; //타이머 패키지
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TodayQuestion extends StatefulWidget {
   @override
@@ -13,14 +12,24 @@ class TodayQuestion extends StatefulWidget {
 class _TodayQuestionState extends State<TodayQuestion> {
   String question = "...Loading?"; // 질문
   String answer = ""; // 답변
+  String questionId = ""; // 질문 ID
+  int? familyId; // family_id 변수 추가
 
   @override
   void initState() {
     super.initState();
-    _openAi();
+    _loadFamilyId().then((_) {
+      _openAi(); // familyId가 로드된 후에 질문을 생성
+    });
   }
 
-  String questionId=""; //질문 ID를 저장할 변수 추가
+  Future<void> _loadFamilyId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      familyId = prefs.getInt('family_id'); // family_id 불러오기
+    });
+  }
+
   Future<void> _openAi() async {
     final apiKey = dotenv.env['OPENAI_API_KEY']!;
     final response = await http.post(
@@ -32,54 +41,64 @@ class _TodayQuestionState extends State<TodayQuestion> {
       body: jsonEncode({
         'model': 'gpt-3.5-turbo',
         'messages': [
-          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in korean. just one sentence'},
-          // {'role': 'user', 'content': 'What is Seoul?'}
+          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in Korean. Just one sentence.'}
         ],
         'max_tokens': 100,
       }),
     );
 
     if (response.statusCode == 200) {
-      var data = jsonDecode(utf8.decode(response.bodyBytes)); //한국어로 변경
+      var data = jsonDecode(utf8.decode(response.bodyBytes));
       setState(() {
         question = data['choices'][0]['message']['content'] ?? '질문을 불러오는 데 실패했습니다';
-        questionId = data['choices'][0]['id'] ?? 'UnknownID'; //questionId를 데이터에서 받아와서 저장
-        print('API sucess: $question'); // 로그 추가
+        print('API success: $question');
       });
-      await _saveQuestionToDB(question);
+      await _saveQuestionToDB(question,  familyId); // 질문을 DB에 저장
     } else {
       setState(() {
         question = 'Error: ${response.reasonPhrase}';
-        print('API fail: ${response.reasonPhrase}'); // 로그 추가
+        print('API fail: ${response.reasonPhrase}');
       });
     }
   }
 
+  Future<void> _saveQuestionToDB(String question , int? familyId) async {
+    if (familyId == null) {
+      print("Family ID is null. Cannot save question.");
+      return;
+    }
 
-  Future<void> _saveQuestionToDB(String question) async {
     final response = await http.post(
       Uri.parse('http://127.0.0.1:8000/api/save_question/'), // Django 서버 URL로 변경
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'question': question}),
+      body: jsonEncode({'question': question, 'family_id': familyId}),
     );
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      print('Question saved successfully with ID: ${data['id']}');
+      setState(() {
+        questionId = data['id'].toString(); // 서버에서 반환한 question_id를 저장
+      });
+      print('Question saved successfully with ID: $questionId');
     } else {
       print('Failed to save question: ${response.reasonPhrase}');
     }
   }
 
-  Future<void> _saveAnswerToDB(String question, String answer) async {
+  Future<void> _saveAnswerToDB(String answer) async {
+    if (familyId == null || questionId.isEmpty) {
+      print("Family ID or Question ID is null. Cannot save answer.");
+      return;
+    }
+
     final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/save_answer/'), // Django 서버의 URL로 수정
+      Uri.parse('http://127.0.0.1:8000/api/save_answer/'),
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'question_id': questionId, 'answer': answer}),
+      body: jsonEncode({'question_id': questionId, 'answer': answer, 'family_id': familyId}),
     );
 
     if (response.statusCode == 200) {
@@ -89,16 +108,15 @@ class _TodayQuestionState extends State<TodayQuestion> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('#두 번째 질문'),
         backgroundColor: Colors.white,
-        elevation: 0, // 앱바의 그림자를 제거
+        elevation: 0,
         iconTheme: IconThemeData(
-          color: Colors.black, // 앱바 아이콘 색상
+          color: Colors.black,
         ),
       ),
       backgroundColor: Colors.white,
@@ -135,14 +153,11 @@ class _TodayQuestionState extends State<TodayQuestion> {
             ),
             SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () async { // async를 추가한 람다 함수
+              onPressed: () async {
                 print('Question: $question');
                 print('Answer: $answer');
+                await _saveAnswerToDB(answer);
 
-                // 서버로 답변 저장 요청
-                await _saveAnswerToDB(questionId, answer);
-
-                // 알림을 표시하고 TodayQuestion과 QuestionNotification 화면을 pop하여 HomeScreen으로 전환
                 showDialog(
                   context: context,
                   builder: (BuildContext context) {
@@ -152,8 +167,8 @@ class _TodayQuestionState extends State<TodayQuestion> {
                       actions: [
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).pop(); // 다이얼로그 닫기
-                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false); // HomeScreen으로 돌아가기
+                            Navigator.of(context).pop();
+                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
                           },
                           child: Text('확인'),
                         ),
@@ -163,7 +178,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color.fromARGB(255, 255, 207, 102), // 버튼 색상
+                backgroundColor: Color.fromARGB(255, 255, 207, 102),
                 padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -174,10 +189,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),
-
-
           ],
-
         ),
       ),
     );
