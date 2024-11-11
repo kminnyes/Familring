@@ -556,13 +556,20 @@ def save_answer(request):
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 모든 사용자에게 접근 허용
-def get_answer(request, question_id):
+def get_answer(request, question_id, family_id):
     try:
+        # 요청이 수신되었음을 알리는 로그
+        print(f"get_answer 호출됨 - question_id: {question_id}, family_id: {family_id}")
+
         # 특정 질문에 대한 모든 답변을 조회
-        answers = Answer.objects.filter(question__id=question_id)
+        answers = Answer.objects.filter(question_id=question_id, family_id=family_id)
+
+        # 조회 결과 확인 로그
+        print(f"조회된 답변 수: {answers.count()}")
 
         # 답변이 없는 경우 처리
         if not answers.exists():
+            print("해당 질문에 대한 답변이 없습니다.")
             return JsonResponse({'error': '해당 질문에 대한 답변이 없습니다.'}, status=404)
 
         # 모든 답변을 JSON 리스트로 변환
@@ -575,11 +582,17 @@ def get_answer(request, question_id):
             'user_id': answer.user.id if answer.user else None  # user_id 추가
         } for answer in answers]
 
+        print("응답 리스트 변환 완료:", answer_list)  # 변환된 응답 리스트 확인 로그
         return JsonResponse(answer_list, safe=False, status=200)  # 리스트를 반환할 때는 safe=False 설정
+
     except Answer.DoesNotExist:
+        print("오류: Answer를 찾을 수 없음")
         return JsonResponse({'error': 'Answer does not exist'}, status=404)
+
     except Exception as e:
+        print("예상치 못한 오류:", str(e))
         return JsonResponse({'error': str(e)}, status=500)
+
 
 # 답변 횟수 제한
 @api_view(['GET'])

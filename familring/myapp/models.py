@@ -121,6 +121,7 @@ class DailyQuestion(models.Model):
     # question_id = models.AutoField(primary_key=True)  # AutoField는 자동으로 증가하는 필드
     question = models.TextField()  # 질문 텍스트
     created_at_q = models.DateField(auto_now_add=True)
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
         ordering =['-created_at_q']
