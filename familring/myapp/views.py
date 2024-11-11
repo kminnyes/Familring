@@ -463,21 +463,35 @@ from django.views.decorators.csrf import csrf_exempt
 
 # OpenAI API Key 설정
 openai.api_key = 'OPENAI_API_KEY'
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import DailyQuestion, Family
+import json
+
 @csrf_exempt
 def save_question(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         question_text = data.get('question', '')
+        family_id = data.get('family_id')
 
-        # 데이터베이스에 질문 저장
-        question = DailyQuestion.objects.create(question=question_text)
-        return JsonResponse({'message': 'Question saved successfully!', 'id': question.id})
+        try:
+            # family_id를 통해 Family 객체 조회
+            family = Family.objects.get(family_id=family_id)
+            # 데이터베이스에 질문 저장
+            question = DailyQuestion.objects.create(question=question_text, family=family)
+            return JsonResponse({'message': 'Question saved successfully!', 'id': question.id})
+        except Family.DoesNotExist:
+            return JsonResponse({'error': 'Invalid family_id'}, status=400)
+        except Exception as e:
+            # 에러 로그 출력
+            print(f"Error saving question: {e}")
+            return JsonResponse({'error': str(e)}, status=500)  # 에러 메시지를 JSON으로 반환
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-
 # 질문 가져오기
-def question_list(request):
-    questions = DailyQuestion.objects.all().values('id', 'question')
+def question_list(request, family_id):
+    questions = DailyQuestion.objects.filter(family_id=family_id).values('id', 'question', 'created_at_q')
     return JsonResponse(list(questions), safe=False)
 
 
