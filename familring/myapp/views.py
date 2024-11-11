@@ -458,7 +458,7 @@ def current_user(request):
     return Response(serializer.data, status=200)
 
 
-# 질문 db에 저장(gpt)
+# 질문 db에 저장
 import json
 import logging
 logger = logging.getLogger(__name__)
@@ -888,3 +888,149 @@ def get_family_id(request):
         return Response({"error": "이 사용자에 대한 Family ID가 없습니다."}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
+
+
+#질문생성하기(RAG)
+import logging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.core.management import call_command
+from .management.commands.export_answer_table_to_json import Command
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])  # 인증된 사용자만 접근 가능
+def export_answers(request):
+    # 요청 데이터 로깅
+    logger.info(f"Request data: {request.data}")  # request.data 로깅
+    family_id = request.data.get("family_id")
+
+    if not family_id:
+        logger.error("family_id가 요청 데이터에 없습니다.")
+        return Response({"error": "family_id를 제공해야 합니다."}, status=400)
+
+    try:
+        # 관리 명령 실행
+        logger.info(f"Family ID {family_id}에 대해 JSON 파일을 내보내는 작업 시작.")
+        # family_id를 명령어에 넘김
+        call_command('export_answer_table_to_json', family_id)
+
+        # 성공 메시지
+        logger.info(f"Family ID {family_id}에 대한 JSON 파일 생성 완료.")
+        return Response({"message": f"Family ID {family_id}에 대한 데이터가 JSON으로 내보내졌습니다."})
+
+    except Exception as e:
+        # 예외 발생 시 로깅하고 500 오류 반환
+        logger.error(f"Family ID {family_id}에 대해 처리 중 오류 발생: {str(e)}")
+        return Response({"error": f"처리 중 오류 발생: {str(e)}"}, status=500)
+
+import logging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.core.management import call_command
+from .management.commands.process_json_data import Command
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])  # 인증된 사용자만 접근 가능
+def process_json_data(request):
+    family_id = request.data.get("family_id")
+    if not family_id:
+        logger.error("family_id가 요청 데이터에 없습니다.")
+        return Response({"error": "family_id를 제공해야 합니다."}, status=400)
+
+    try:
+        # Django 관리 명령을 호출하여 JSON 파일 처리 및 임베딩 생성
+        logger.info(f"Family ID {family_id}에 대해 JSON 데이터 처리 작업 시작.")
+        # family_id를 명령어에 넘김
+        call_command('process_json_data', family_id)
+
+        # 성공 메시지
+        logger.info(f"Family ID {family_id}에 대한 데이터가 처리되었습니다.")
+        return Response({"message": f"Family ID {family_id}에 대한 데이터가 처리되었습니다."})
+
+    except Exception as e:
+        logger.error(f"Family ID {family_id}에 대해 처리 중 오류 발생: {str(e)}")
+        return Response({"error": f"처리 중 오류 발생: {str(e)}"}, status=500)
+
+
+import logging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.core.management import call_command
+from .management.commands.generate_question import Command
+from .models import DailyQuestion
+from django.http import JsonResponse
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_question(request):
+    family_id = request.data.get("family_id")
+    if not family_id:
+        logger.error("family_id가 요청 데이터에 없습니다.")
+        return JsonResponse({"error": "family_id를 제공해야 합니다."}, status=400, json_dumps_params={'ensure_ascii': False}, content_type='application/json; charset=utf-8')
+
+    try:
+        logger.info(f"Family ID {family_id}에 대해 질문 생성 작업 시작.")
+        call_command('generate_question', family_id)
+
+        generated_question = DailyQuestion.objects.filter(family_id=family_id).order_by('-created_at_q').first()
+
+        if generated_question:
+            logger.info(f"Family ID {family_id}에 대한 질문이 생성되었습니다: {generated_question.question}")
+            return JsonResponse({
+                "message": f"Family ID {family_id}에 대한 질문이 생성되었습니다.",
+                "question": generated_question.question,
+                "question_id": generated_question.id
+            }, json_dumps_params={'ensure_ascii': False}, content_type='application/json; charset=utf-8')
+        else:
+            logger.error(f"Family ID {family_id}에 대한 질문을 생성하는 데 실패했습니다.")
+            return JsonResponse({"error": "질문 생성에 실패했습니다."}, status=500, json_dumps_params={'ensure_ascii': False}, content_type='application/json; charset=utf-8')
+
+    except Exception as e:
+        logger.error(f"Family ID {family_id}에 대해 질문 생성 중 오류 발생: {str(e)}")
+        return JsonResponse({"error": f"질문 생성 중 오류 발생: {str(e)}"}, status=500, json_dumps_params={'ensure_ascii': False}, content_type='application/json; charset=utf-8')
+
+
+
+
+# 기존 질문이 있는지 확인
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import DailyQuestion
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_question_db(request):
+    #특정 가족의 질문이 있는지 확인
+    family_id = request.query_params.get('family_id')
+
+    if not family_id:
+        return Response({'error': 'family_id parameter is required'}, status=400)
+
+    try:
+        # family_id에 해당하는 가족 객체 가져오기
+        family = Family.objects.get(family_id=family_id)
+
+        # 해당 가족의 질문이 있는지 확인
+        has_questions = DailyQuestion.objects.filter(family=family).exists()
+        return Response({'has_questions': has_questions})
+    except Family.DoesNotExist:
+        return Response({'error': 'Invalid family_id'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+

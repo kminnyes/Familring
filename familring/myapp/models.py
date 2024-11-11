@@ -141,7 +141,6 @@ class Answer(models.Model):
     def __str__(self):
         return f"Answer by {self.user.username} to Question {self.question.id}"
 
-
 #캘린더 일정
 from django.db import models
 
