@@ -14,8 +14,10 @@ class AnswerQuestionScreen extends StatefulWidget {
 }
 
 class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
-  List<String> answers = [];  // 답변 리스트
-  List<String> userNicknames = [];  // 닉네임 리스트
+  List<String> answers = []; // 답변 리스트
+  List<String> userNicknames = []; // 닉네임 리스트
+  List<int> answerIds = []; // 각 답변의 ID를 저장할 리스트
+  List<int> userIds = []; // 각 답변 작성자의 ID 리스트
   bool isLoading = true;
   int? userId;
   int? familyId;
@@ -30,43 +32,26 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchAnswers();  // 여러 답변을 가져오는 함수로 이름 변경
+    _fetchAnswers();
     _loadUserId();
     _loadFamilyId();
-
   }
-
 
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      userId = prefs.getInt('user_id');  // SharedPreferences에서 userId 불러오기
-      print('userId loaded: $userId');  // 디버깅 로그 추가
+      userId = prefs.getInt('user_id');
+      print('userId loaded: $userId');
     });
   }
-
-
-  Future<void> saveUserInfo(String accessToken, String refreshToken, int userId, List<int> familyIds) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', accessToken);
-    await prefs.setString('refresh_token', refreshToken);
-    await prefs.setInt('user_id', userId);
-    await prefs.setStringList('family_ids', familyIds.map((id) => id.toString()).toList());
-    print('User ID saved: $userId');
-    print('Family IDs saved: ${familyIds}');
-  }
-
 
   Future<void> _loadFamilyId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      familyId = prefs.getInt('family_id'); // Directly load the stored family_id
+      familyId = prefs.getInt('family_id');
       print('Family ID loaded: $familyId');
     });
   }
-
-
-
 
   Future<void> _fetchAnswers() async {
     try {
@@ -81,10 +66,28 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
       print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);  // JSON 배열로 파싱
+        final List<dynamic> data = jsonDecode(response.body); // JSON 배열로 파싱
+
         setState(() {
-          answers = data.map((item) => item['answer'] as String).toList();
-          userNicknames = data.map((item) => item['user_nickname'] as String).toList();
+          answers = data.map((item) => item['answer'] as String? ?? '')
+              .toList(); // null 체크 후 기본값으로 대체
+          userNicknames =
+              data.map((item) => item['user_nickname'] as String? ?? '')
+                  .toList(); // null 체크 후 기본값으로 대체
+          answerIds =
+              data.map((item) => item['id'] as int).toList(); // answer ID 추가
+          userIds =
+              data.map((item) => item['user_id'] as int).toList(); // user ID 추가
+
+          // 추가 디버깅: 각 데이터 항목을 출력
+          for (var item in data) {
+            print("Parsed answer: ${item['answer'] ?? 'null'}");
+            print("Parsed user_nickname: ${item['user_nickname'] ?? 'null'}");
+            print("Parsed question_id: ${item['question_id'] ?? 'null'}");
+            print("Parsed answer_id: ${item['id'] ?? 'null'}"); // answer ID 확인
+            print("Parsed user_id: ${item['user_id'] ?? 'null'}"); // user ID 확인
+          }
+
           isLoading = false;
         });
       } else {
@@ -104,7 +107,8 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   Future<bool> _checkAnswerExists(int questionId, int userId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/check_answer_exists/$questionId/$userId/'),
+        Uri.parse(
+            'http://127.0.0.1:8000/api/check_answer_exists/$questionId/$userId/'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -158,8 +162,8 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Answer saved successfully');
-        _fetchAnswers();  // 새로 등록된 답변 포함하여 다시 불러오기
-        _answerController.clear();  // 답변 입력창 초기화
+        _fetchAnswers(); // 새로 등록된 답변 포함하여 다시 불러오기
+        _answerController.clear(); // 답변 입력창 초기화
         _showAlertDialog('알림', '답변이 등록되었습니다.');
       } else {
         print('Failed to save answer: ${response.reasonPhrase}');
@@ -219,6 +223,80 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   }
 
 
+  Future<void> _updateAnswerToDB(int answerId, String updatedAnswer) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? accessToken = prefs.getString('access_token');  // 저장된 access_token 불러오기
+
+      if (accessToken == null) {
+        print("Token is null. Please login again.");
+        return;
+      }
+
+      print("Sending token: $accessToken");  // 토큰 값 확인용
+
+      final response = await http.put(
+        Uri.parse('http://127.0.0.1:8000/api/update_answer/$answerId/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',  // access_token 추가
+        },
+        body: jsonEncode({'answer': updatedAnswer}),
+      );
+
+      print('Response status: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        print('Answer updated successfully');
+        _fetchAnswers();
+      } else {
+        print('Failed to update answer: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      print('Error updating answer: $e');
+    }
+  }
+
+
+
+  Future<void> _showUpdateDialog(int answerId, String currentAnswer) async {
+    _answerController.text = currentAnswer;
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('답변 수정하기'),
+          content: TextField(
+            controller: _answerController,
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: '답변을 수정하세요...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('취소'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final updatedAnswer = _answerController.text.trim();
+                if (updatedAnswer.isNotEmpty) {
+                  await _updateAnswerToDB(answerId, updatedAnswer);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text('수정하기'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,20 +318,39 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
               child: ListView.builder(
                 itemCount: answers.length,
                 itemBuilder: (context, index) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'A. ${answers[index]}',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      Text(
-                        '작성자: ${userNicknames[index]}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                      SizedBox(height: 10),
-                    ],
-                  );
+                  if (index < answers.length &&
+                      index < userNicknames.length &&
+                      index < answerIds.length &&
+                      index < userIds.length) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'A. ${answers[index]}',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        Text(
+                          '작성자: ${userNicknames[index]}',
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        if (userIds[index] == userId) // 현재 사용자의 답변인지 확인
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  _showUpdateDialog(
+                                      answerIds[index], answers[index]);
+                                },
+                                child: Text('수정하기'),
+                              ),
+                            ],
+                          ),
+                        SizedBox(height: 10),
+                      ],
+                    );
+                  } else {
+                    return SizedBox.shrink(); // 조건이 맞지 않을 때 빈 위젯 반환
+                  }
                 },
               ),
             ),
@@ -268,40 +365,50 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: isLoading ? null : () async {
+              onPressed: isLoading
+                  ? null
+                  : () async {
                 setState(() {
                   isLoading = true;
                 });
                 print('버튼이 눌렸습니다'); // 디버깅
-                print('userId: $userId, familyId: $familyId'); // userId와 familyId 값 확인
+                print(
+                    'userId: $userId, familyId: $familyId'); // userId와 familyId 값 확인
 
                 if (userId == null || familyId == null) {
-                  await _showAlertDialog('알림', '유저 ID 또는 가족 ID가 로드되지 않았습니다.');
+                  await _showAlertDialog(
+                      '알림', '유저 ID 또는 가족 ID가 로드되지 않았습니다.');
                   setState(() {
                     isLoading = false;
                   });
                   return;
                 }
 
-                if (_answerController.text.trim().isEmpty) {
+                if (_answerController.text
+                    .trim()
+                    .isEmpty) {
                   await _showAlertDialog('알림', '답변을 작성해 주세요.');
-                } else if (userId != null) {
+                } else {
                   print('확인 알림을 띄웁니다'); // 디버깅
-                  bool confirmed = await _showConfirmationDialog('답변 등록', '답변을 등록하시겠습니까?');
+                  bool confirmed = await _showConfirmationDialog(
+                      '답변 등록', '답변을 등록하시겠습니까?');
                   if (confirmed) {
                     print('답변이 확인되었습니다'); // 디버깅
-                    _saveAnswerToDB(userId!, familyId!);
+                    await _saveAnswerToDB(userId!, familyId!);
                   }
                 }
                 setState(() {
                   isLoading = false;
                 });
               },
-              child: isLoading ? CircularProgressIndicator() : Text('답변 등록하기'),
+              child: isLoading
+                  ? CircularProgressIndicator()
+                  : Text('답변 등록하기'),
             ),
           ],
         ),
       ),
     );
   }
+
 }

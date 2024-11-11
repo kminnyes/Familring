@@ -539,6 +539,7 @@ def save_answer(request):
 
 
 # 답변 가져오기
+@csrf_exempt
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 모든 사용자에게 접근 허용
 def get_answer(request, question_id):
@@ -552,10 +553,12 @@ def get_answer(request, question_id):
 
         # 모든 답변을 JSON 리스트로 변환
         answer_list = [{
+            'id': answer.id,  # Answer ID 추가
             'question_id': answer.question.id,
             'answer': answer.answer,
             'created_at': answer.created_at.strftime('%Y-%m-%d %H:%M:%S'),  # 날짜 형식을 문자열로 변환
-            'user_nickname': answer.user.nickname if answer.user else "알 수 없음"  # 사용자 닉네임 가져오기
+            'user_nickname': answer.user.nickname if answer.user else "알 수 없음",  # 사용자 닉네임 가져오기
+            'user_id': answer.user.id if answer.user else None  # user_id 추가
         } for answer in answers]
 
         return JsonResponse(answer_list, safe=False, status=200)  # 리스트를 반환할 때는 safe=False 설정
@@ -570,6 +573,28 @@ def get_answer(request, question_id):
 def check_answer_exists(request, question_id, user_id):
     answer_exists = Answer.objects.filter(question_id=question_id, user_id=user_id).exists()
     return JsonResponse({'answer_exists': answer_exists})
+
+#답변 수정하기
+@csrf_exempt
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_answer(request, answer_id):
+    try:
+        answer = Answer.objects.get(id=answer_id)
+
+        # 디버깅 로그 추가
+        print(f"Answer User ID: {answer.user_id}")
+        print(f"Request User ID: {request.user.id}")
+
+        if request.user.id != answer.user_id:
+            return Response({"error": "Permission denied"}, status=403)
+
+        data = json.loads(request.body)
+        answer.answer = data.get('answer', answer.answer)
+        answer.save()
+        return Response({"message": "Answer updated successfully"}, status=200)
+    except Answer.DoesNotExist:
+        return Response({"error": "Answer not found"}, status=404)
 
 
 from rest_framework.decorators import api_view, permission_classes
