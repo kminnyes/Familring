@@ -349,14 +349,39 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            ElevatedButton(
-              onPressed: _showCreateFamilyDialog,
-              child: Text('가족 만들기'),
+            SizedBox(
+              child: ElevatedButton(
+                onPressed: _showCreateFamilyDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color.fromARGB(255, 255, 207, 102),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                ),
+                child: Text(
+                  '가족 만들기',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ),
             ),
+            SizedBox(height: 20), // 버튼 사이에 간격 추가
             if (_hasFamily)
-              ElevatedButton(
-                onPressed: deleteFamily,
-                child: Text('가족 삭제하기'),
+              SizedBox(
+                child: ElevatedButton(
+                  onPressed: deleteFamily,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 255, 207, 102),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                  ),
+                  child: Text(
+                    '가족 삭제하기',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
               ),
             TextField(
               decoration: InputDecoration(labelText: '사용자 검색'),
@@ -395,7 +420,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('가족 만들기'),
+              Text('가족 만들기➕'),
               IconButton(
                 icon: Icon(Icons.close),
                 onPressed: () {
