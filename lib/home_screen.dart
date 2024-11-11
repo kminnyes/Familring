@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:familring2/token_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'question_notification.dart';
+import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -11,8 +12,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<dynamic> _familyBucketList = [];
-  List<dynamic> _personalBucketList = [];
+  List<dynamic> _allBucketList = []; // 결합된 버킷리스트 리스트
+  Map<String, dynamic>? _randomBucketListItem;
   List<Map<String, dynamic>> _scheduleList = []; // 오늘의 일정 리스트
   List<dynamic> _familyMembers = []; // 가족 멤버 데이터
   int? familyId;
@@ -42,14 +43,23 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          _familyBucketList = data['family_bucket_list'];
-          _personalBucketList = data['personal_bucket_list'];
+          // 가족 및 개인 버킷리스트를 결합
+          _allBucketList = [
+            ...data['family_bucket_list'],
+            ...data['personal_bucket_list']
+          ];
+
+          // 결합된 리스트에서 무작위로 항목 선택
+          if (_allBucketList.isNotEmpty) {
+            final randomIndex = Random().nextInt(_allBucketList.length);
+            _randomBucketListItem = _allBucketList[randomIndex];
+          }
         });
       } else {
-        throw Exception('Failed to load bucket lists');
+        throw Exception('버킷리스트 로드 실패');
       }
     } catch (error) {
-      print('Error fetching bucket lists: $error');
+      print('버킷리스트 로드 중 오류 발생: $error');
     }
   }
 
@@ -150,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 가족 추가 및 가족 멤버 UI
+              // 가족 멤버 UI
               Row(
                 children: [
                   ..._familyMembers.map((member) => _buildFamilyMember(member)).toList(),
@@ -159,73 +169,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               SizedBox(height: 20),
 
-              // Family Bucket List Section
+              // 단일 버킷리스트 항목 표시
               Text(
                 "우리 가족 버킷리스트",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
               ),
               SizedBox(height: 10),
-              _familyBucketList.isEmpty
-                  ? Text("가족 버킷리스트가 없습니다.")
-                  : ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _familyBucketList.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    color: Colors.orange[50],
-                    child: ListTile(
-                      leading: Icon(Icons.emoji_objects, color: Colors.orange),
-                      title: Text(_familyBucketList[index]['bucket_title']),
-                      trailing: Checkbox(
-                        value: _familyBucketList[index]['is_completed'],
-                        onChanged: (bool? value) {
-                          if (value != null) {
-                            setState(() {
-                              _familyBucketList[index]['is_completed'] = value;
-                            });
-                            _toggleCompleteStatus(_familyBucketList[index]['bucket_id'], value);
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-              SizedBox(height: 20),
-
-              // Personal Bucket List Section
-              Text(
-                "개인 버킷리스트",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
-              ),
-              SizedBox(height: 10),
-              _personalBucketList.isEmpty
-                  ? Text("개인 버킷리스트가 없습니다.")
-                  : ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _personalBucketList.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    color: Colors.orange[50],
-                    child: ListTile(
-                      leading: Icon(Icons.emoji_objects, color: Colors.orange),
-                      title: Text(_personalBucketList[index]['bucket_title']),
-                      trailing: Checkbox(
-                        value: _personalBucketList[index]['is_completed'],
-                        onChanged: (bool? value) {
-                          if (value != null) {
-                            setState(() {
-                              _personalBucketList[index]['is_completed'] = value;
-                            });
-                            _toggleCompleteStatus(_personalBucketList[index]['bucket_id'], value);
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                },
+              _randomBucketListItem == null
+                  ? Text("버킷리스트가 없습니다.")
+                  : Card(
+                color: Colors.orange[50],
+                child: ListTile(
+                  leading: Icon(Icons.emoji_objects, color: Colors.orange),
+                  title: Text(_randomBucketListItem!['bucket_title']),
+                  trailing: Checkbox(
+                    value: _randomBucketListItem!['is_completed'],
+                    onChanged: (bool? value) {
+                      if (value != null) {
+                        setState(() {
+                          _randomBucketListItem!['is_completed'] = value;
+                        });
+                        _toggleCompleteStatus(_randomBucketListItem!['bucket_id'], value);
+                      }
+                    },
+                  ),
+                ),
               ),
               SizedBox(height: 20),
 

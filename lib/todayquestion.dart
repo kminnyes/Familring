@@ -19,9 +19,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
   @override
   void initState() {
     super.initState();
-    _loadUserIdAndFamilyId().then((_) {
-      _openAi(); // userId와 familyId가 로드된 후에 질문을 생성
-    });
+    _loadUserIdAndFamilyId();
   }
 
   Future<void> _loadUserIdAndFamilyId() async {
@@ -32,39 +30,67 @@ class _TodayQuestionState extends State<TodayQuestion> {
       print('User ID loaded: $userId');
       print('Family ID loaded: $familyId');
     });
+    await fetchQuestionFromServer(); // familyId를 로드한 후에 호출
   }
 
-  Future<void> _openAi() async {
-    final apiKey = dotenv.env['OPENAI_API_KEY']!;
-    final response = await http.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
-      body: jsonEncode({
-        'model': 'gpt-3.5-turbo',
-        'messages': [
-          {'role': 'system', 'content': 'Ask your users short, thought-provoking questions in Korean. Just one sentence.'}
-        ],
-        'max_tokens': 100,
-      }),
-    );
+  // Access token 가져오기 함수
+  Future<String?> getAccessToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('access_token');
+  }
 
-    if (response.statusCode == 200) {
-      var data = jsonDecode(utf8.decode(response.bodyBytes));
+  Future<void> fetchQuestionFromServer() async {
+    final accessToken = await getAccessToken();
+
+    if (accessToken == null || familyId == null) {
       setState(() {
-        question = data['choices'][0]['message']['content'] ?? '질문을 불러오는 데 실패했습니다';
-        print('API success: $question');
+        question = '로그인 토큰 또는 Family ID가 없습니다.';
       });
-      await _saveQuestionToDB(question, familyId); // 질문을 DB에 저장
-    } else {
+      return;
+    }
+
+    try {
+      // 첫 번째 서버 요청: 가족의 질문이 있는지 확인하기
+      final checkResponse = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/check_question_db?family_id=$familyId'), // 가족의 질문 확인 API
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken', // Authorization 헤더에 access_token 추가
+        },
+      );
+
+      if (checkResponse.statusCode == 200) {
+        var checkData = jsonDecode(checkResponse.body);
+        bool hasQuestions = checkData['has_questions'] ?? false;
+
+        // 해당 가족의 질문이 없는 경우 기본 질문 설정 및 DB에 저장
+        if (!hasQuestions) {
+          setState(() {
+            question = "어떤 일에 가장 큰 열정을 가지고 계시나요?";
+          });
+          await _saveQuestionToDB(question, familyId); // 기본 질문을 DB에 저장
+          return;
+        }
+
+        // 질문이 있는 경우, 순차적으로 export, process, generate 명령 호출
+        await exportAnswers(familyId!);
+        await processJsonData(familyId!);
+        await generateQuestion(familyId!);
+
+      } else {
+        setState(() {
+          question = '질문을 확인하는 중 오류 발생';
+        });
+      }
+    } catch (e) {
       setState(() {
-        question = 'Error: ${response.reasonPhrase}';
-        print('API fail: ${response.reasonPhrase}');
+        question = '질문을 불러오는 중 오류 발생';
       });
+      print('Error fetching question: $e');
     }
   }
+
+
 
   Future<void> _saveQuestionToDB(String question , int? familyId) async {
     if (familyId == null) {
@@ -91,7 +117,101 @@ class _TodayQuestionState extends State<TodayQuestion> {
     }
   }
 
+  // Export answers API 호출
+  Future<void> exportAnswers(int familyId) async {
+    final accessToken = await getAccessToken(); // access_token 불러오기
+    if (accessToken == null) {
+      print("Access Token이 없습니다.");
+      return;
+    }
+
+    final url = Uri.parse('http://127.0.0.1:8000/api/export_answers/');
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $accessToken", // Authorization 헤더에 access_token 추가
+      },
+      body: jsonEncode({"family_id": familyId}),
+    );
+
+    if (response.statusCode == 200) {
+      print("JSON 파일 생성 및 RAG 처리 성공: ${jsonDecode(response.body)['message']}");
+    } else {
+      print("오류 발생: ${jsonDecode(response.body)['error']}");
+    }
+  }
+
+  // Process JSON data API 호출
+  Future<void> processJsonData(int familyId) async {
+    final accessToken = await getAccessToken(); // access_token 불러오기
+    if (accessToken == null) {
+      print("Access Token이 없습니다.");
+      return;
+    }
+
+    final url = Uri.parse('http://127.0.0.1:8000/api/process_json_data/');
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $accessToken", // Authorization 헤더에 access_token 추가
+      },
+      body: jsonEncode({"family_id": familyId}),
+    );
+
+    if (response.statusCode == 200) {
+      print("JSON 데이터 처리 성공: ${jsonDecode(response.body)['message']}");
+    } else {
+      print("오류 발생: ${jsonDecode(response.body)['error']}");
+    }
+  }
+
+  // Generate question API 호출
+  Future<void> generateQuestion(int familyId) async {
+    final accessToken = await getAccessToken(); // access_token 불러오기
+    if (accessToken == null) {
+      print("Access Token이 없습니다.");
+      return;
+    }
+
+    final url = Uri.parse('http://127.0.0.1:8000/api/generate_question/');
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $accessToken", // Authorization 헤더에 access_token 추가
+      },
+      body: jsonEncode({"family_id": familyId}),
+    );
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      setState(() {
+        question = data['question'];  // 서버에서 반환된 질문을 할당
+        questionId = data['question_id'].toString(); // 서버에서 반환된 question_id를 설정
+      });
+      print("가족 맞춤형 질문 생성 성공: ${data['message']}");
+    } else {
+      print("오류 발생: ${jsonDecode(response.body)['error']}");
+    }
+  }
+
+
+
+
   Future<void> _saveAnswerToDB(String answer) async {
+    if (userId == null) {
+      print("Error: userId is null.");
+    }
+    if (familyId == null) {
+      print("Error: familyId is null.");
+    }
+    if (questionId.isEmpty) {
+      print("Error: questionId is empty.");
+    }
+
+
     if (userId == null || familyId == null || questionId.isEmpty) {
       print("User ID, Family ID, or Question ID is null. Cannot save answer.");
       return;
@@ -159,7 +279,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('#두 번째 질문'),
+        title: Text('오늘의 질문'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
