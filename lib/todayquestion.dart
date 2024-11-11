@@ -14,19 +14,23 @@ class _TodayQuestionState extends State<TodayQuestion> {
   String answer = ""; // 답변
   String questionId = ""; // 질문 ID
   int? familyId; // family_id 변수 추가
+  int? userId; // user_id 변수 추가
 
   @override
   void initState() {
     super.initState();
-    _loadFamilyId().then((_) {
-      _openAi(); // familyId가 로드된 후에 질문을 생성
+    _loadUserIdAndFamilyId().then((_) {
+      _openAi(); // userId와 familyId가 로드된 후에 질문을 생성
     });
   }
 
-  Future<void> _loadFamilyId() async {
+  Future<void> _loadUserIdAndFamilyId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      familyId = prefs.getInt('family_id'); // family_id 불러오기
+      userId = prefs.getInt('user_id');
+      familyId = prefs.getInt('family_id');
+      print('User ID loaded: $userId');
+      print('Family ID loaded: $familyId');
     });
   }
 
@@ -53,7 +57,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
         question = data['choices'][0]['message']['content'] ?? '질문을 불러오는 데 실패했습니다';
         print('API success: $question');
       });
-      await _saveQuestionToDB(question,  familyId); // 질문을 DB에 저장
+      await _saveQuestionToDB(question, familyId); // 질문을 DB에 저장
     } else {
       setState(() {
         question = 'Error: ${response.reasonPhrase}';
@@ -88,8 +92,8 @@ class _TodayQuestionState extends State<TodayQuestion> {
   }
 
   Future<void> _saveAnswerToDB(String answer) async {
-    if (familyId == null || questionId.isEmpty) {
-      print("Family ID or Question ID is null. Cannot save answer.");
+    if (userId == null || familyId == null || questionId.isEmpty) {
+      print("User ID, Family ID, or Question ID is null. Cannot save answer.");
       return;
     }
 
@@ -98,11 +102,17 @@ class _TodayQuestionState extends State<TodayQuestion> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'question_id': questionId, 'answer': answer, 'family_id': familyId}),
+      body: jsonEncode({'question_id': questionId, 'answer': answer, 'user_id': userId, 'family_id': familyId}),
     );
 
     if (response.statusCode == 200) {
-      print('Answer saved successfully');
+      var data = jsonDecode(response.body);
+      if (mounted) {  // mounted가 true일 때만 setState() 호출
+        setState(() {
+          questionId = data['id'].toString();
+        });
+        print('Answer saved successfully with ID: $questionId');
+      }
     } else {
       print('Failed to save answer: ${response.reasonPhrase}');
     }
