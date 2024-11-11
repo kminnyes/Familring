@@ -209,22 +209,23 @@ class _BucketListScreenState extends State<BucketListScreen> {
                           children: [
                             TextSpan(
                               text: "지금까지 ",
-                              style: TextStyle(fontSize: 18, color: Colors.black),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                             TextSpan(
                               text: "$completedGoals개",
-                              style: TextStyle(fontSize: 18, color: Colors.blue),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                             ),
                             TextSpan(
                               text: "를 이뤘어요",
-                              style: TextStyle(fontSize: 18, color: Colors.black),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  Image.asset('images/status_icon.png', width: 60), // Add status icon
+                  Image.asset('images/main_icon.png', width: 150,
+                    height: 150), // Add status icon
                 ],
               ),
               SizedBox(height: 20),
@@ -242,7 +243,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                   final color = isFamily ? Colors.green : Colors.pink;
                   final titlePrefix = isFamily
                       ? "가족 목표"
-                      : username + "님의 개인 목표";
+                      : username + " 님의 개인 목표";
 
                   return Container(
                     decoration: BoxDecoration(
@@ -287,7 +288,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                               },
                               child: Icon(
                                 item['is_completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
-                                size: 36,
+                                size: 40,
                                 color: item['is_completed'] ? Colors.orange : Colors.grey,
                               ),
                             ),
