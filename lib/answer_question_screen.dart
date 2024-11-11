@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AnswerQuestionScreen extends StatefulWidget {
   final String question;
   final int questionId;
+  final String questionNumber;
 
-  AnswerQuestionScreen({required this.question, required this.questionId});
+
+  AnswerQuestionScreen({required this.question, required this.questionId, required this.questionNumber});
 
   @override
   _AnswerQuestionScreenState createState() => _AnswerQuestionScreenState();
@@ -226,28 +228,69 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   Future<void> _updateAnswerToDB(int answerId, String updatedAnswer) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? accessToken = prefs.getString('access_token');  // 저장된 access_token 불러오기
+      String? accessToken = prefs.getString('access_token');
+      String? refreshToken = prefs.getString('refresh_token');
+
+      if (refreshToken == null) {
+        print("Refresh token is missing. Please log in again.");
+        return;
+      }
 
       if (accessToken == null) {
         print("Token is null. Please login again.");
         return;
       }
 
-      print("Sending token: $accessToken");  // 토큰 값 확인용
+      print("Sending token: $accessToken");
 
-      final response = await http.put(
+      // API 요청을 시도합니다.
+      var response = await http.put(
         Uri.parse('http://127.0.0.1:8000/api/update_answer/$answerId/'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',  // access_token 추가
+          'Authorization': 'Bearer $accessToken',
         },
         body: jsonEncode({'answer': updatedAnswer}),
       );
 
-      print('Response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         print('Answer updated successfully');
         _fetchAnswers();
+      } else if (response.statusCode == 401) {
+        print('Access token expired. Refreshing token...');
+
+        final refreshResponse = await http.post(
+          Uri.parse('http://127.0.0.1:8000/api/token/refresh/'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refresh': refreshToken}),
+        );
+
+        if (refreshResponse.statusCode == 200) {
+          var data = jsonDecode(refreshResponse.body);
+          String newAccessToken = data['access'];
+
+          await prefs.setString('access_token', newAccessToken);
+          print("Access token refreshed successfully: $newAccessToken");
+
+          // 갱신된 토큰으로 다시 요청을 시도합니다.
+          response = await http.put(
+            Uri.parse('http://127.0.0.1:8000/api/update_answer/$answerId/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $newAccessToken',
+            },
+            body: jsonEncode({'answer': updatedAnswer}),
+          );
+
+          if (response.statusCode == 200) {
+            print('Answer updated successfully on retry');
+            _fetchAnswers();
+          } else {
+            print('Failed to update answer on retry: ${response.reasonPhrase}');
+          }
+        } else {
+          print('Failed to refresh token: ${refreshResponse.body}');
+        }
       } else {
         print('Failed to update answer: ${response.reasonPhrase}');
       }
@@ -255,6 +298,7 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
       print('Error updating answer: $e');
     }
   }
+
 
 
 
@@ -301,11 +345,40 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('질문에 답하기'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false, // Remove default back button
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${widget.questionNumber} 번째 질문', // Use the question number here
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.amber,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'X',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Q. ${widget.question}',
@@ -313,102 +386,52 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
             ),
             SizedBox(height: 20),
             isLoading
-                ? CircularProgressIndicator()
+                ? Center(child: CircularProgressIndicator())
                 : Expanded(
               child: ListView.builder(
                 itemCount: answers.length,
                 itemBuilder: (context, index) {
-                  if (index < answers.length &&
-                      index < userNicknames.length &&
-                      index < answerIds.length &&
-                      index < userIds.length) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'A. ${answers[index]}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        Text(
-                          '작성자: ${userNicknames[index]}',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        if (userIds[index] == userId) // 현재 사용자의 답변인지 확인
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () {
-                                  _showUpdateDialog(
-                                      answerIds[index], answers[index]);
-                                },
-                                child: Text('수정하기'),
-                              ),
-                            ],
+                  return GestureDetector(
+                    onLongPress: () {
+                      if (userIds[index] == userId) {
+                        _showUpdateDialog(answerIds[index], answers[index]);
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${userNicknames[index]}님의 답변',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
-                        SizedBox(height: 10),
-                      ],
-                    );
-                  } else {
-                    return SizedBox.shrink(); // 조건이 맞지 않을 때 빈 위젯 반환
-                  }
+                          SizedBox(height: 8),
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.orange),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'A. ${answers[index]}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 },
               ),
-            ),
-            SizedBox(height: 20),
-            TextField(
-              controller: _answerController,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: '답변을 입력해주세요...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                setState(() {
-                  isLoading = true;
-                });
-                print('버튼이 눌렸습니다'); // 디버깅
-                print(
-                    'userId: $userId, familyId: $familyId'); // userId와 familyId 값 확인
-
-                if (userId == null || familyId == null) {
-                  await _showAlertDialog(
-                      '알림', '유저 ID 또는 가족 ID가 로드되지 않았습니다.');
-                  setState(() {
-                    isLoading = false;
-                  });
-                  return;
-                }
-
-                if (_answerController.text
-                    .trim()
-                    .isEmpty) {
-                  await _showAlertDialog('알림', '답변을 작성해 주세요.');
-                } else {
-                  print('확인 알림을 띄웁니다'); // 디버깅
-                  bool confirmed = await _showConfirmationDialog(
-                      '답변 등록', '답변을 등록하시겠습니까?');
-                  if (confirmed) {
-                    print('답변이 확인되었습니다'); // 디버깅
-                    await _saveAnswerToDB(userId!, familyId!);
-                  }
-                }
-                setState(() {
-                  isLoading = false;
-                });
-              },
-              child: isLoading
-                  ? CircularProgressIndicator()
-                  : Text('답변 등록하기'),
             ),
           ],
         ),
       ),
     );
   }
-
 }
