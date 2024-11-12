@@ -277,7 +277,7 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
                 itemCount: answers.length,
                 itemBuilder: (context, index) {
                   return GestureDetector(
-                    onLongPress: () {
+                    onTap: () {
                       if (userIds[index] == userId) {
                         _showUpdateDialog(answerIds[index], answers[index]);
                       }
@@ -297,6 +297,7 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
                           ),
                           SizedBox(height: 8),
                           Container(
+                            width: 500, // 고정된 가로 길이 설정
                             padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.orange),
@@ -307,6 +308,7 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
                               style: TextStyle(fontSize: 16),
                             ),
                           ),
+
                         ],
                       ),
                     ),
