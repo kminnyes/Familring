@@ -109,125 +109,6 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
     }
   }
 
-
-  Future<bool> _checkAnswerExists(int questionId, int userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-            'http://127.0.0.1:8000/api/check_answer_exists/$questionId/$userId/'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['answer_exists'];
-      } else {
-        print('Failed to check answer existence: ${response.reasonPhrase}');
-        return false;
-      }
-    } catch (e) {
-      print('Error checking answer existence: $e');
-      return false;
-    }
-  }
-
-
-  Future<void> _saveAnswerToDB() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int? userId = prefs.getInt('user_id'); // SharedPreferences에서 user_id 불러오기
-    int? familyId = prefs.getInt('family_id'); // SharedPreferences에서 family_id 불러오기
-
-    // SharedPreferences에서 불러온 값이 null인 경우 로그 출력
-    if (userId == null || familyId == null) {
-      print("Error: userId or familyId is null. Cannot save answer.");
-      _showAlertDialog('알림', '유저 ID 또는 가족 ID가 없습니다.');
-      return;
-    }
-
-    final answerText = _answerController.text.trim();
-    try {
-      print('Sending answer to server with user_id: $userId and family_id: $familyId');
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/save_answer/'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'question_id': widget.questionId,
-          'answer': answerText,
-          'user_id': userId,  // user_id 추가
-          'family_id': familyId,
-        }),
-      );
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Answer saved successfully');
-        _fetchAnswers();
-        _answerController.clear();
-        _showAlertDialog('알림', '답변이 등록되었습니다.');
-      } else {
-        print('Failed to save answer: ${response.reasonPhrase}');
-        print('Response data: ${response.body}');
-      }
-    } catch (e) {
-      print('Error saving answer: $e');
-    }
-  }
-
-
-  //답변 등록 관련 팝업창
-  Future<void> _showAlertDialog(String title, String message) async {
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<bool> _showConfirmationDialog(String title, String message) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
-  }
-
-
   Future<void> _updateAnswerToDB(int answerId, String updatedAnswer) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -355,13 +236,14 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${widget.questionNumber} 번째 질문', // Use the question number here
+              '${widget.questionNumber} 번째 질문',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.amber,
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             GestureDetector(
               onTap: () {
                 Navigator.of(context).pop();

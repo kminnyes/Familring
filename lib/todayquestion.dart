@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TodayQuestion extends StatefulWidget {
@@ -231,7 +230,7 @@ class _TodayQuestionState extends State<TodayQuestion> {
       body: jsonEncode({'question_id': questionId, 'answer': answer, 'user_id': userId, 'family_id': familyId}),
     );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200  || response.statusCode ==201) {
       var data = jsonDecode(response.body);
       if (mounted) {  // mounted가 true일 때만 setState() 호출
         setState(() {
@@ -243,28 +242,6 @@ class _TodayQuestionState extends State<TodayQuestion> {
       print('Failed to save answer: ${response.reasonPhrase}');
     }
   }
-
-  // 알림을 띄우는 함수
-  Future<void> _showAlertDialog(String title, String message) async {
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
 
   void _showTemporarySnackBar(String message) {
     final snackBar = SnackBar(
