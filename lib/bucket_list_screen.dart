@@ -79,6 +79,81 @@ class _BucketListScreenState extends State<BucketListScreen> {
     }
   }
 
+  // 버킷리스트 삭제 API 호출
+  Future<void> _deleteBucketItem(int bucketId) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/delete/' + bucketId.toString() +'/'),
+        headers: headers,
+        body: jsonEncode({'bucket_id': bucketId}),
+      );
+      if (response.statusCode == 200) {
+        _deleteLocalBucketItem(bucketId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제되었습니다'),
+          ),
+        );
+      } else {
+        throw Exception('Failed to delete bucket item');
+      }
+    } catch (error) {
+      print('Error deleting bucket item: $error');
+    }
+  }
+
+  // 로컬에서 버킷리스트 삭제
+  void _deleteLocalBucketItem(int bucketId) {
+    setState(() {
+      _familyBucketList.removeWhere((item) => item['bucket_id'] == bucketId);
+      _personalBucketList.removeWhere((item) => item['bucket_id'] == bucketId);
+    });
+  }
+
+  // 버킷리스트 삭제 확인 팝업
+  Future<void> _showDeleteConfirmationDialog(int bucketId) async {
+    final result = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          content: Text('이 버킷리스트를 삭제하시겠습니까?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                '취소',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(false); // 삭제 취소
+              },
+            ),
+            TextButton(
+              child: Text(
+                '삭제',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(true); // 삭제 진행
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      await _deleteBucketItem(bucketId); // 삭제 함수 호출
+    }
+  }
+
   // 버킷리스트 추가 팝업
   void _showAddBucketDialog() {
     String newBucketItem = '';
@@ -99,13 +174,17 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 decoration: InputDecoration(hintText: "새로운 버킷리스트 항목"),
               ),
               SizedBox(height: 10),
-              CheckboxListTile(
-                title: Text('가족 버킷리스트로 만들기'),
-                value: isFamilyBucket,
-                onChanged: (value) {
-                  setState(() {
-                    isFamilyBucket = value ?? false;
-                  });
+              StatefulBuilder( // Use StatefulBuilder for checkbox state management in dialog
+                builder: (BuildContext context, StateSetter setState) {
+                  return CheckboxListTile(
+                    title: Text('가족 버킷리스트로 만들기'),
+                    value: isFamilyBucket,
+                    onChanged: (value) {
+                      setState(() {
+                        isFamilyBucket = value ?? false;
+                      });
+                    },
+                  );
                 },
               ),
             ],
@@ -242,62 +321,67 @@ class _BucketListScreenState extends State<BucketListScreen> {
                   final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
                   final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    margin: EdgeInsets.symmetric(vertical: 5),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 12,
-                                      height: 12,
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        shape: BoxShape.circle,
+                  return GestureDetector(
+                    onLongPress: () {
+                      _showDeleteConfirmationDialog(item['bucket_id']);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      margin: EdgeInsets.symmetric(vertical: 5),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      titlePrefix,
-                                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 5),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 18.0), // content를 오른쪽으로 약간 이동
-                                  child: Text(
-                                    item['bucket_title'],
-                                    style: TextStyle(fontSize: 18),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        titlePrefix,
+                                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  SizedBox(height: 5),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 18.0), // content를 오른쪽으로 약간 이동
+                                    child: Text(
+                                      item['bucket_title'],
+                                      style: TextStyle(fontSize: 18),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
-                              });
-                            },
-                            child: Icon(
-                              Icons.check_circle,
-                              size: 40,
-                              color: item['is_completed'] ? Colors.orange : Color(0xFFFFECC3),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
+                                });
+                              },
+                              child: Icon(
+                                Icons.check_circle,
+                                size: 40,
+                                color: item['is_completed'] ? Colors.orange : Color(0xFFFFECC3),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );

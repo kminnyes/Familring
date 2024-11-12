@@ -197,6 +197,52 @@ def complete_bucketlist(request, bucket_id):
         print(f"Error: {e}")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import BucketList, FamilyList
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import BucketList, FamilyList
+from .serializers import BucketListSerializer
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_bucketlist(request,bucket_id):
+    try:
+        user = request.user
+
+        if not bucket_id:
+            return Response({"error": "Bucket ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 버킷리스트 항목 조회
+        bucketlist = BucketList.objects.filter(bucket_id=bucket_id).first()
+
+        if not bucketlist:
+            return Response({"error": "BucketList not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 개인 버킷리스트 삭제 권한 확인
+        if bucketlist.user == user:
+            bucketlist.delete()
+            return Response({"message": "Personal bucket list item has been deleted."}, status=status.HTTP_200_OK)
+
+        # 가족 버킷리스트 삭제 권한 확인
+        family_list_entry = FamilyList.objects.filter(user=user, family=bucketlist.family).first()
+        if bucketlist.family and family_list_entry:
+            bucketlist.delete()
+            return Response({"message": "Family bucket list item has been deleted."}, status=status.HTTP_200_OK)
+
+        return Response({"error": "You do not have permission to delete this bucket list item."}, status=status.HTTP_403_FORBIDDEN)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
@@ -370,35 +416,6 @@ def pending_family_request(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# 가족 초대 승인/거절
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def respond_to_invitation(request):
-    data = request.data
-    family_request = get_object_or_404(FamilyRequest, id=data['request_id'])
-
-    if data['action'] == '승인':
-        # FamilyList에 추가
-        FamilyList.objects.create(
-            family=family_request.family,
-            user=request.user
-        )
-        family_request.progress = '승인'
-        family_request.save()
-        return Response({"message": "가족 초대가 승인되었습니다.", "family_id": family_request.family.family_id}, status=status.HTTP_200_OK)
-    elif data['action'] == '거절':
-        family_request.progress = '거절'
-        family_request.save()
-        return Response({"message": "가족 초대가 거절되었습니다."}, status=status.HTTP_200_OK)
-
-    return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from .models import Family
-
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_family(request, family_id):
@@ -426,6 +443,29 @@ def delete_family(request, family_id):
         print(f"Error deleting family: {e}")
         return Response({"error": "가족 삭제 중 오류가 발생했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+# 가족 초대 승인/거절
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def respond_to_invitation(request):
+    data = request.data
+    family_request = get_object_or_404(FamilyRequest, id=data['request_id'])
+
+    if data['action'] == '승인':
+        # FamilyList에 추가
+        FamilyList.objects.create(
+            family=family_request.family,
+            user=request.user
+        )
+        family_request.progress = '승인'
+        family_request.save()
+        return Response({"message": "가족 초대가 승인되었습니다.", "family_id": family_request.family.family_id}, status=status.HTTP_200_OK)
+    elif data['action'] == '거절':
+        family_request.progress = '거절'
+        family_request.save()
+        return Response({"message": "가족 초대가 거절되었습니다."}, status=status.HTTP_200_OK)
+
+    return Response({"error": "잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

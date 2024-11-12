@@ -5,10 +5,10 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 from .views import (
-    register, login, get_bucketlists, add_bucketlist, complete_bucketlist,
-    get_profile, update_profile, send_family_invitation, check_invitation_status,
+    register, login, get_bucketlists, add_bucketlist, complete_bucketlist, delete_bucketlist,
+    get_profile, update_profile, send_family_invitation, check_invitation_status, delete_family,
     respond_to_invitation, search_user, get_all_users, pending_family_request, get_csrf_token,
-    save_question, create_family, save_answer, delete_family, family_members
+    save_question, create_family, save_answer, family_members
 )
 
 urlpatterns = [
@@ -22,6 +22,7 @@ urlpatterns = [
     path('bucket/', get_bucketlists, name='get_bucketlists'),
     path('bucket/add/', add_bucketlist, name='add_bucketlist'),
     path('bucket/complete/<int:bucket_id>/', complete_bucketlist, name='complete_bucketlist'),
+    path('bucket/delete/<int:bucket_id>/', delete_bucketlist, name='delete_bucketlist'),
 
     #프로필
     path('profile/', get_profile, name='get_profile'),
