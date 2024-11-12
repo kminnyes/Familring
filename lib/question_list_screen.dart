@@ -159,7 +159,7 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                                   builder: (context) => AnswerQuestionScreen(
                                     question: latestQuestion!['question'],
                                     questionId: latestQuestion!['id'] ?? 0,
-                                    questionNumber: "#${questionsAndAnswers.length + 1}", // 최신 질문의 번호 설정
+                                    questionNumber: "${questionsAndAnswers.length + 1}", // 최신 질문의 번호 설정
                                     familyId: familyId ?? 0,
                                   ),
                                 ),
@@ -197,13 +197,26 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                 itemBuilder: (context, index) {
                   final qa = questionsAndAnswers[index];
                   return ListTile(
-                    leading: Text(
-                      '#${(questionsAndAnswers.length - index).toString().padLeft(3, '0')}', // 번호 형식
-                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                    leading: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${(questionsAndAnswers.length - index).toString().padLeft(3, '0')}', // 숫자 부분
+                            style: TextStyle(
+                              fontSize: 15, // 원하는 숫자 크기
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     title: Text(
                       qa['question'],
-                      style: TextStyle(color: Colors.black),
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 14,
+                      ),
                     ),
                     onTap: () {
                       Navigator.push(
@@ -212,16 +225,16 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                           builder: (context) => AnswerQuestionScreen(
                             question: qa['question'],
                             questionId: qa['id'] ?? 0,
-                            questionNumber: "#${(questionsAndAnswers.length - index)}", // 올바른 질문 번호 전달
+                            questionNumber: "#${(index + 1)}",
                             familyId: familyId ?? 0,
                           ),
                         ),
                       );
                     },
-
                   );
                 },
               ),
+
             ),
           ],
         ),

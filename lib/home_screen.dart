@@ -6,6 +6,7 @@ import 'package:familring2/token_util.dart';
 import 'question_notification.dart';
 import 'dart:math';
 import 'family_management_screen.dart';
+import 'dart:async'; //졸작 전시에만 사용
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double imageSize = 60.0;
   double fontSize = 15.0;
   String familyName = '';
+  Timer? _questionNotificationTimer; //졸작 전시에만 사용
 
   @override
   void initState() {
@@ -33,9 +35,23 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (context) => QuestionNotification()),
       );
     });
+    // (졸작 전시에만 사용) 30초마다 question_notification 화면으로 이동하도록 타이머 설정
+    _questionNotificationTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => QuestionNotification()),
+      );
+    });
     _fetchBucketLists();
     _fetchFamilyMembers();
     _fetchFamilyName();
+  }
+
+  @override
+  void dispose() {
+    // 타이머 해제하여 메모리 누수 방지
+    _questionNotificationTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSharedPreferences() async {

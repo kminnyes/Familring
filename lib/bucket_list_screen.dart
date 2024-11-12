@@ -79,6 +79,135 @@ class _BucketListScreenState extends State<BucketListScreen> {
     }
   }
 
+  void _editBucketItem(int bucketId, String updatedTitle) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/update/' + bucketId.toString() + '/'),
+        headers: headers,
+        body: jsonEncode({'bucket_title': updatedTitle}),
+      );
+      if (response.statusCode == 200) {
+        _fetchBucketLists();
+      } else {
+        throw Exception('Failed to update bucket list item');
+      }
+    } catch (error) {
+      print('Error updating bucket list item: $error');
+    }
+  }
+
+  void _showEditDialog(BuildContext context, int bucketId, String currentTitle) {
+    String updatedTitle = currentTitle;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('버킷리스트 수정'),
+          content: TextField(
+            onChanged: (value) {
+              updatedTitle = value;
+            },
+            controller: TextEditingController(text: currentTitle),
+            decoration: InputDecoration(hintText: '새로운 버킷리스트 제목'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('취소'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('수정'),
+              onPressed: () {
+                _editBucketItem(bucketId, updatedTitle);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  // 버킷리스트 삭제 API 호출
+  Future<void> _deleteBucketItem(int bucketId) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/delete/' + bucketId.toString() +'/'),
+        headers: headers,
+        body: jsonEncode({'bucket_id': bucketId}),
+      );
+      if (response.statusCode == 200) {
+        _deleteLocalBucketItem(bucketId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제되었습니다'),
+          ),
+        );
+      } else {
+        throw Exception('Failed to delete bucket item');
+      }
+    } catch (error) {
+      print('Error deleting bucket item: $error');
+    }
+  }
+
+  // 로컬에서 버킷리스트 삭제
+  void _deleteLocalBucketItem(int bucketId) {
+    setState(() {
+      _familyBucketList.removeWhere((item) => item['bucket_id'] == bucketId);
+      _personalBucketList.removeWhere((item) => item['bucket_id'] == bucketId);
+    });
+  }
+
+  // 버킷리스트 삭제 확인 팝업
+  Future<void> _showDeleteConfirmationDialog(int bucketId) async {
+    final result = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          content: Text('이 버킷리스트를 삭제하시겠습니까?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                '취소',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(false); // 삭제 취소
+              },
+            ),
+            TextButton(
+              child: Text(
+                '삭제',
+                style: TextStyle(
+                  color: Color(0xFFFFA651),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(true); // 삭제 진행
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      await _deleteBucketItem(bucketId); // 삭제 함수 호출
+    }
+  }
+
   // 버킷리스트 추가 팝업
   void _showAddBucketDialog() {
     String newBucketItem = '';
@@ -99,13 +228,17 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 decoration: InputDecoration(hintText: "새로운 버킷리스트 항목"),
               ),
               SizedBox(height: 10),
-              CheckboxListTile(
-                title: Text('가족 버킷리스트로 만들기'),
-                value: isFamilyBucket,
-                onChanged: (value) {
-                  setState(() {
-                    isFamilyBucket = value ?? false;
-                  });
+              StatefulBuilder( // Use StatefulBuilder for checkbox state management in dialog
+                builder: (BuildContext context, StateSetter setState) {
+                  return CheckboxListTile(
+                    title: Text('가족 버킷리스트로 만들기'),
+                    value: isFamilyBucket,
+                    onChanged: (value) {
+                      setState(() {
+                        isFamilyBucket = value ?? false;
+                      });
+                    },
+                  );
                 },
               ),
             ],
@@ -230,19 +363,26 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 ],
               ),
               SizedBox(height: 20),
-              ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _familyBucketList.length + _personalBucketList.length,
-                itemBuilder: (context, index) {
-                  final isFamily = index < _familyBucketList.length;
-                  final item = isFamily
-                      ? _familyBucketList[index]
-                      : _personalBucketList[index - _familyBucketList.length];
-                  final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
-                  final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
+            ListView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: _familyBucketList.length + _personalBucketList.length,
+              itemBuilder: (context, index) {
+                final isFamily = index < _familyBucketList.length;
+                final item = isFamily
+                    ? _familyBucketList[index]
+                    : _personalBucketList[index - _familyBucketList.length];
+                final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
+                final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
 
-                  return Container(
+                return GestureDetector(
+                  onTap: () {
+                    _showEditDialog(context, item['bucket_id'], item['bucket_title']);
+                  },
+                  onLongPress: () {
+                    _showDeleteConfirmationDialog(item['bucket_id']);
+                  },
+                  child: Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
                       borderRadius: BorderRadius.circular(10),
@@ -300,10 +440,11 @@ class _BucketListScreenState extends State<BucketListScreen> {
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-              SizedBox(height: 50), // 리스트와 버튼 사이 간격 추가
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 50), // 리스트와 버튼 사이 간격 추가
               Center(
                 child: ElevatedButton(
                   onPressed: _showAddBucketDialog,
