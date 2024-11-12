@@ -1034,3 +1034,22 @@ def check_question_db(request):
 
 
 
+
+#family_name가져오기
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .models import Family
+
+from django.http import JsonResponse
+from .models import Family
+
+def get_family_name(request, family_id):
+    try:
+        family = Family.objects.get(family_id=family_id)
+        return JsonResponse({'family_name': family.family_name})
+    except Family.DoesNotExist:
+        return JsonResponse({'error': 'Family not found'}, status=404)
+
+
+
+

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:familring2/token_util.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:familring2/token_util.dart';
 import 'question_notification.dart';
 import 'dart:math';
+import 'family_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,12 +13,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<dynamic> _allBucketList = []; // 결합된 버킷리스트 리스트
+  List<dynamic> _allBucketList = [];
   Map<String, dynamic>? _randomBucketListItem;
-  List<Map<String, dynamic>> _scheduleList = []; // 오늘의 일정 리스트
-  List<dynamic> _familyMembers = []; // 가족 멤버 데이터
+  List<Map<String, dynamic>> _scheduleList = [];
+  List<dynamic> _familyMembers = [];
   int? familyId;
   String nickname = '';
+  double imageSize = 60.0;
+  double fontSize = 15.0;
+  String familyName = '';
 
   @override
   void initState() {
@@ -31,56 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _fetchBucketLists();
     _fetchFamilyMembers();
-  }
-
-  void _fetchBucketLists() async {
-    try {
-      Map<String, String> headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/bucket/'),
-        headers: headers,
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          // 가족 및 개인 버킷리스트를 결합
-          _allBucketList = [
-            ...data['family_bucket_list'],
-            ...data['personal_bucket_list']
-          ];
-
-          // 결합된 리스트에서 무작위로 항목 선택
-          if (_allBucketList.isNotEmpty) {
-            final randomIndex = Random().nextInt(_allBucketList.length);
-            _randomBucketListItem = _allBucketList[randomIndex];
-          }
-        });
-      } else {
-        throw Exception('버킷리스트 로드 실패');
-      }
-    } catch (error) {
-      print('버킷리스트 로드 중 오류 발생: $error');
-    }
-  }
-
-  void _fetchFamilyMembers() async {
-    try {
-      Map<String, String> headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/family/members/'),
-        headers: headers,
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _familyMembers = data;
-        });
-      } else {
-        throw Exception('Failed to load family members');
-      }
-    } catch (error) {
-      print('Error fetching family members: $error');
-    }
+    _fetchFamilyName();
   }
 
   Future<void> _loadSharedPreferences() async {
@@ -89,15 +44,89 @@ class _HomeScreenState extends State<HomeScreen> {
       familyId = prefs.getInt('family_id');
       nickname = prefs.getString('nickname') ?? '';
     });
-    _fetchTodayEvents(); // familyId를 로드한 후에 오늘의 일정 불러오기
+    _fetchTodayEvents();
   }
 
-  Future<Map<String, String>> _getHeaders() async {
+  Future<void> _fetchFamilyName() async {
     String? token = await getAccessToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
+    if (token == null) return;
+
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/family_name/$familyId/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        familyName = data['family_name'] ?? '';
+      });
+    } else {
+      print('Failed to load family name');
+    }
+  }
+
+  void _fetchBucketLists() async {
+    try {
+      String? token = await getAccessToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _allBucketList = [
+            ...data['family_bucket_list'],
+            ...data['personal_bucket_list']
+          ];
+
+          if (_allBucketList.isNotEmpty) {
+            final randomIndex = Random().nextInt(_allBucketList.length);
+            _randomBucketListItem = _allBucketList[randomIndex];
+          }
+        });
+      } else {
+        print('Failed to load bucket lists');
+      }
+    } catch (error) {
+      print('Error fetching bucket lists: $error');
+    }
+  }
+
+  void _fetchFamilyMembers() async {
+    try {
+      String? token = await getAccessToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/family/members/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _familyMembers = data;
+        });
+      } else {
+        print('Failed to load family members');
+      }
+    } catch (error) {
+      print('Error fetching family members: $error');
+    }
   }
 
   void _fetchTodayEvents() async {
@@ -107,13 +136,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      Map<String, String> headers = await _getHeaders();
+      String? token = await getAccessToken();
+      if (token == null) return;
+
       final today = DateTime.now();
       final url = 'http://127.0.0.1:8000/api/get-today-events/?family_id=$familyId&date=${today.toIso8601String().split("T")[0]}';
 
       final response = await http.get(
         Uri.parse(url),
-        headers: headers,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -129,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }).toList();
         });
       } else {
-        print('Failed to load today\'s events: ${response.statusCode}');
+        print('Failed to load today\'s events');
       }
     } catch (error) {
       print('Error fetching today\'s events: $error');
@@ -156,58 +190,77 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 25.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 가족 멤버 UI
-              Row(
-                children: [
-                  ..._familyMembers.map((member) => _buildFamilyMember(member)).toList(),
-                  _buildFamilyAddButton(),
-                ],
-              ),
-              SizedBox(height: 20),
-
-              // 단일 버킷리스트 항목 표시
-              Text(
-                "우리 가족 버킷리스트",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
-              ),
-              SizedBox(height: 10),
-              _randomBucketListItem == null
-                  ? Text("버킷리스트가 없습니다.")
-                  : Card(
-                color: Colors.orange[50],
-                child: ListTile(
-                  leading: Icon(Icons.emoji_objects, color: Colors.orange),
-                  title: Text(_randomBucketListItem!['bucket_title']),
-                  trailing: Checkbox(
-                    value: _randomBucketListItem!['is_completed'],
-                    onChanged: (bool? value) {
-                      if (value != null) {
-                        setState(() {
-                          _randomBucketListItem!['is_completed'] = value;
-                        });
-                        _toggleCompleteStatus(_randomBucketListItem!['bucket_id'], value);
-                      }
-                    },
-                  ),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: "$familyName",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(
+                      text: " 가족",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
+                    ),
+                  ],
                 ),
               ),
+              SizedBox(height: 10),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Color(0xFFFFCF66),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                height: 135,
+                alignment: Alignment.center,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _familyMembers.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == _familyMembers.length) {
+                      return _buildFamilyAddButton();
+                    } else {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: _buildFamilyMember(_familyMembers[index]),
+                      );
+                    }
+                  },
+                ),
+              ),
+              SizedBox(height: 30),
+              Row(
+                children: [
+                  Text(
+                    "우리 가족 ",
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  Text(
+                    "버킷리스트",
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 255, 186, 81),
+                  ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 1),
+              _randomBucketListItem == null
+                  ? Text("버킷리스트가 없습니다.")
+                  : _buildBucketListItem(_randomBucketListItem!),
               SizedBox(height: 20),
-
-              // Schedule List Section
               Text(
                 "오늘의 일정",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 0),
               Text(
                 "오늘 우리 가족은 무엇을 하며 하루를 보내게 될까요?",
-                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 15, color: Colors.black),
               ),
-              SizedBox(height: 10),
+              SizedBox(height: 7),
               ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -218,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8.0),
-                      border: Border.all(color: Colors.orange),
+                      border: Border.all(color: Color(0xFFFFA651), width: 1.2),
                     ),
                     child: Row(
                       children: [
@@ -227,18 +280,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             children: [
                               SizedBox(
-                                width: 50,
-                                height: 50,
+                                width: 40,
+                                height: 40,
                                 child: Image.asset(
                                   _scheduleList[index]["img"]!,
                                   fit: BoxFit.contain,
                                 ),
                               ),
                               Transform.translate(
-                                offset: Offset(0, -8),
+                                offset: Offset(0, -1),
                                 child: Text(
                                   _scheduleList[index]["name"]!,
-                                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                  style: TextStyle(fontSize: 11.5, color: Color(0xFF656565)),
                                 ),
                               ),
                             ],
@@ -246,9 +299,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         SizedBox(width: 16),
                         Expanded(
-                          child: Text(
-                            _scheduleList[index]["task"]!,
-                            style: TextStyle(fontSize: 18),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 12.0),
+                            child: Text(
+                              _scheduleList[index]["task"]!,
+                              style: TextStyle(fontSize: 18),
+                            ),
                           ),
                         ),
                       ],
@@ -265,63 +321,129 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFamilyMember(Map<String, dynamic> member) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 60,
-          height: 60,
-          child: CircleAvatar(
-            backgroundImage: AssetImage("images/familring_user_icon1.png"),
-            child: Text(
-              member['nickname'][0],
-              style: TextStyle(color: Colors.white),
-            ),
+        Container(
+          width: imageSize,
+          height: imageSize,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Image.asset(
+            "images/familring_user_icon1.png",
+            fit: BoxFit.contain,
           ),
         ),
         SizedBox(height: 4),
         Text(
           member['nickname'],
-          style: TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: fontSize),
         ),
       ],
     );
   }
 
   Widget _buildFamilyAddButton() {
-    return GestureDetector(
-      onTap: _showAddFamilyDialog,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.orange, width: 2),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FamilyManagementScreen()),
+            );
+          },
+          child: Container(
+            width: imageSize - 6,
+            height: imageSize - 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFFFECC3),
+              border: Border.all(color: Color(0xFF656565), width: 1.4),
+            ),
+            child: Center(
+              child: Icon(Icons.add, color: Color(0xFF656565), size: 24),
+            ),
+          ),
         ),
-        child: Icon(Icons.add, color: Colors.orange, size: 30),
+        SizedBox(height: 10),
+        Text(
+          '가족 추가',
+          style: TextStyle(fontSize: 15, color: Color(0xFF656565)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBucketListItem(Map<String, dynamic> item) {
+    final isFamilyBucket = item['bucket_type'] == 'family';
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20), // 전체 위치 조정
+      margin: EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey, width: 1.1), // 회색 테두리 추가
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 목표 유형과 색상 원을 오른쪽으로 옮기기 위해 Row에 Padding 적용
+          Padding(
+            padding: const EdgeInsets.only(left: 18.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: isFamilyBucket ? Color(0xFF38963B) : Color(0xFFFF9CBA),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Text(
+                  isFamilyBucket ? '가족 목표' : '개인 목표',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 3),
+          // 버킷리스트 내용
+          Padding(
+            padding: const EdgeInsets.only(left: 40.0), // content를 더 오른쪽에서 시작
+            child: Text(
+              item['bucket_title'],
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+
   void _toggleCompleteStatus(int bucketId, bool isCompleted) async {
     try {
-      Map<String, String> headers = await _getHeaders();
+      String? token = await getAccessToken();
+      if (token == null) return;
+
       final response = await http.put(
         Uri.parse('http://127.0.0.1:8000/api/bucket/complete/$bucketId/'),
-        headers: headers,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode({'is_completed': isCompleted}),
       );
+
       if (response.statusCode != 200) {
-        throw Exception('Failed to complete bucket item');
+        print('Failed to complete bucket item');
       }
     } catch (error) {
       print('Error completing bucket item: $error');
     }
-  }
-
-  void _showAddFamilyDialog() {
-    // 가족 추가 다이얼로그 코드
-  }
-
-  void _showMessageDialog(String message) {
-    // 메시지 다이얼로그 코드
   }
 }
