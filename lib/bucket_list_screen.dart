@@ -191,15 +191,15 @@ class _BucketListScreenState extends State<BucketListScreen> {
                           children: [
                             TextSpan(
                               text: "하고 싶은 것들이 ",
-                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+                              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                             TextSpan(
-                              text: "$remainingGoals개",
-                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.orange),
+                              text: "$remainingGoals개\n",
+                              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.orange),
                             ),
                             TextSpan(
-                              text: " 남았어요!",
-                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+                              text: "남았어요!",
+                              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                           ],
                         ),
@@ -216,7 +216,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                             ),
                             TextSpan(
-                              text: "를 이뤘어요",
+                              text: "를 이뤘어요.",
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                           ],
@@ -225,7 +225,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                     ],
                   ),
                   Image.asset('images/main_icon.png', width: 150,
-                    height: 150), // Add status icon
+                      height: 150), // Add status icon
                 ],
               ),
               SizedBox(height: 20),
@@ -247,50 +247,54 @@ class _BucketListScreenState extends State<BucketListScreen> {
 
                   return Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.orange),
+                      border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     margin: EdgeInsets.symmetric(vertical: 5),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      titlePrefix,
+                                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                titlePrefix,
-                                style: TextStyle(fontSize: 14, color: Colors.black54),
-                              ),
-                            ],
+                                SizedBox(height: 5),
+                                Text(
+                                  item['bucket_title'],
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              ],
+                            ),
                           ),
-                          SizedBox(height: 5),
-                          Text(
-                            item['bucket_title'],
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
-                                });
-                              },
-                              child: Icon(
-                                item['is_completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
-                                size: 40,
-                                color: item['is_completed'] ? Colors.orange : Colors.grey,
-                              ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
+                              });
+                            },
+                            child: Icon(
+                              item['is_completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                              size: 40,
+                              color: item['is_completed'] ? Colors.orange : Colors.grey,
                             ),
                           ),
                         ],
@@ -305,7 +309,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 child: ElevatedButton(
                   onPressed: _showAddBucketDialog,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 255, 207, 102),
+                    backgroundColor: Color.fromARGB(255, 255, 186, 81),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30.0),
                     ),
@@ -313,7 +317,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                   ),
                   child: Text(
                     "버킷리스트 생성 하기",
-                    style: TextStyle(fontSize: 16, color: Colors.black),
+                    style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
               ),

@@ -39,6 +39,7 @@ urlpatterns = [
     path('delete_account/', delete_account, name='delete_account'),
     path('family/members/', family_members, name='family_members'),
     path('family_list/', views.get_family_id, name='get_family_id'),
+    path('family_name/<int:family_id>/', views.get_family_name, name='get_family_name'),
 
     # 질문 관련
     path('save_question/', save_question, name='save_question'),
