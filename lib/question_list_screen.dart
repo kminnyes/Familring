@@ -51,17 +51,21 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
         if (mounted) {
           setState(() {
             if (data.isNotEmpty) {
+              // id 기준으로 정렬
+              data.sort((a, b) => b['id'].compareTo(a['id']));
+
               latestQuestion = {
-                'id': data[0]['id'],
-                'question': data[0]['question'],
+                'id': data.first['id'], // 가장 최근 질문
+                'question': data.first['question'],
                 'answer': ''
               };
-              questionsAndAnswers = data.skip(1).map((question) => {
+
+              // 나머지 질문들을 "이전의 질문"으로 설정
+              questionsAndAnswers = data.sublist(1).map((question) => {
                 'id': question['id'],
                 'question': question['question'],
                 'answer': ''
               }).toList();
-              questionsAndAnswers.sort((a, b) => b['id'].compareTo(a['id']));
             }
           });
         }
@@ -109,7 +113,6 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                   SizedBox(height: 10),
                   Container(
                     width: 500, // 원하는 너비로 고정
-                    height: 130, // 원하는 높이로 고정
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Color(0xFFFFF5E1),
@@ -119,31 +122,34 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: EdgeInsets.only(left: 10.0, top: 10.0), // 왼쪽과 위쪽 여백 추가
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'Q. ',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange, // 'Q.'의 색상을 오렌지색으로 지정
+                          padding: EdgeInsets.only(left: 10.0, top: 10.0),
+                          child: SingleChildScrollView( // 길이가 길 경우 스크롤 가능
+                            scrollDirection: Axis.vertical,
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Q. ',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                    ),
                                   ),
-                                ),
-                                TextSpan(
-                                  text: latestQuestion!['question'],
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black, // 질문 텍스트 색상을 검정으로 지정
+                                  TextSpan(
+                                    text: latestQuestion!['question'],
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        Spacer(),
+                        SizedBox(height: 10), // 버튼과 텍스트 사이 여백
                         Center(
                           child: ElevatedButton(
                             onPressed: () {
@@ -153,24 +159,24 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                                   builder: (context) => AnswerQuestionScreen(
                                     question: latestQuestion!['question'],
                                     questionId: latestQuestion!['id'] ?? 0,
-                                    questionNumber: "#${(index ?? 0) + 1}",
+                                    questionNumber: "#${questionsAndAnswers.length + 1}", // 최신 질문의 번호 설정
                                     familyId: familyId ?? 0,
-
-                                    ),
                                   ),
-                                );
-                              },
+                                ),
+                              );
+                            },
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color.fromARGB(255, 255, 186, 81),
                               foregroundColor: Colors.white,
-                              minimumSize: Size(300, 50), // 버튼의 최소 너비와 높이 설정
+                              minimumSize: Size(300, 50),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                             child: Text(
                               "가족의 답변 확인하러 가기",
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 16),
                             ),
                           ),
                         ),
@@ -206,12 +212,13 @@ class _QuestionListScreenState extends State<QuestionListScreen> {
                           builder: (context) => AnswerQuestionScreen(
                             question: qa['question'],
                             questionId: qa['id'] ?? 0,
-                            questionNumber: "#${(index ?? 0) + 1}",
+                            questionNumber: "#${(questionsAndAnswers.length - index)}", // 올바른 질문 번호 전달
                             familyId: familyId ?? 0,
                           ),
                         ),
                       );
                     },
+
                   );
                 },
               ),
