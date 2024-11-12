@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:familring2/token_util.dart'; // 토큰 유틸리티 함수 임포트
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class BucketListScreen extends StatefulWidget {
   @override
@@ -11,12 +13,20 @@ class BucketListScreen extends StatefulWidget {
 class _BucketListScreenState extends State<BucketListScreen> {
   List<dynamic> _familyBucketList = [];
   List<dynamic> _personalBucketList = [];
-  String username = "";
+  String nickname = "";
 
   @override
   void initState() {
     super.initState();
     _fetchBucketLists();
+    _loadNickname(); // 닉네임을 로드합니다.
+  }
+
+  Future<void> _loadNickname() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      nickname = prefs.getString('nickname') ?? '사용자';
+    });
   }
 
   // access_token을 가져와 헤더에 추가하는 함수
@@ -41,7 +51,6 @@ class _BucketListScreenState extends State<BucketListScreen> {
         setState(() {
           _familyBucketList = data['family_bucket_list'];
           _personalBucketList = data['personal_bucket_list'];
-          username = data['username'];
         });
       } else {
         throw Exception('Failed to load bucket lists');
@@ -51,34 +60,9 @@ class _BucketListScreenState extends State<BucketListScreen> {
     }
   }
 
-  // 버킷리스트 추가 API 호출
-  void _addBucketItem(String item, bool isFamilyBucket) async {
-    try {
-      Map<String, String> headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/bucket/add/'),
-        headers: headers,
-        body: jsonEncode({
-          'bucket_title': item,
-          'is_family_bucket': isFamilyBucket,
-          'is_completed': false,
-        }),
-      );
-      if (response.statusCode == 201) {
-        _fetchBucketLists(); // 목록 다시 로드하여 UI 업데이트
-      } else {
-        throw Exception('Failed to add bucket list');
-      }
-    } catch (error) {
-      print('Error adding bucket item: $error');
-    }
-  }
-
-  // 버킷리스트 완료 API 호출
+  // 버킷리스트 완료 상태 변경 API 호출
   void _toggleCompleteBucketItem(int bucketId, bool isCompleted) async {
     try {
-      print('Toggling bucket item with ID: $bucketId');
-
       Map<String, String> headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('http://127.0.0.1:8000/api/bucket/complete/$bucketId/'),
@@ -86,7 +70,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
         body: jsonEncode({'is_completed': isCompleted}),
       );
       if (response.statusCode == 200) {
-        _fetchBucketLists(); // 성공적으로 완료된 후, 목록을 다시 로드
+        _fetchBucketLists();
       } else {
         throw Exception('Failed to toggle bucket item');
       }
@@ -115,17 +99,13 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 decoration: InputDecoration(hintText: "새로운 버킷리스트 항목"),
               ),
               SizedBox(height: 10),
-              StatefulBuilder( // Use StatefulBuilder for checkbox state management in dialog
-                builder: (BuildContext context, StateSetter setState) {
-                  return CheckboxListTile(
-                    title: Text('가족 버킷리스트로 만들기'),
-                    value: isFamilyBucket,
-                    onChanged: (value) {
-                      setState(() {
-                        isFamilyBucket = value ?? false;
-                      });
-                    },
-                  );
+              CheckboxListTile(
+                title: Text('가족 버킷리스트로 만들기'),
+                value: isFamilyBucket,
+                onChanged: (value) {
+                  setState(() {
+                    isFamilyBucket = value ?? false;
+                  });
                 },
               ),
             ],
@@ -148,6 +128,29 @@ class _BucketListScreenState extends State<BucketListScreen> {
         );
       },
     );
+  }
+
+  // 버킷리스트 항목 추가
+  void _addBucketItem(String item, bool isFamilyBucket) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/add/'),
+        headers: headers,
+        body: jsonEncode({
+          'bucket_title': item,
+          'is_family_bucket': isFamilyBucket,
+          'is_completed': false,
+        }),
+      );
+      if (response.statusCode == 201) {
+        _fetchBucketLists();
+      } else {
+        throw Exception('Failed to add bucket list');
+      }
+    } catch (error) {
+      print('Error adding bucket item: $error');
+    }
   }
 
   @override
@@ -175,11 +178,10 @@ class _BucketListScreenState extends State<BucketListScreen> {
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 20.0), // 전체 화면 양옆의 padding 추가
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status Summary
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -190,12 +192,12 @@ class _BucketListScreenState extends State<BucketListScreen> {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: "하고 싶은 것들이 ",
+                              text: " 하고 싶은 것들이 ",
                               style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                             TextSpan(
-                              text: "$remainingGoals개\n",
-                              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.orange),
+                              text: "$remainingGoals개\n ",
+                              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Color(0xFFFFBA51)),
                             ),
                             TextSpan(
                               text: "남았어요!",
@@ -208,12 +210,12 @@ class _BucketListScreenState extends State<BucketListScreen> {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: "지금까지 ",
+                              text: "  지금까지 ",
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                             ),
                             TextSpan(
                               text: "$completedGoals개",
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2FC4FF)),
                             ),
                             TextSpan(
                               text: "를 이뤘어요.",
@@ -224,26 +226,21 @@ class _BucketListScreenState extends State<BucketListScreen> {
                       ),
                     ],
                   ),
-                  Image.asset('images/main_icon.png', width: 150,
-                      height: 150), // Add status icon
+                  Image.asset('images/familring_icon_in_bkl.png', width: 180, height: 150),
                 ],
               ),
               SizedBox(height: 20),
-              // Combined Bucket List
               ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
                 itemCount: _familyBucketList.length + _personalBucketList.length,
                 itemBuilder: (context, index) {
                   final isFamily = index < _familyBucketList.length;
-
                   final item = isFamily
                       ? _familyBucketList[index]
                       : _personalBucketList[index - _familyBucketList.length];
-                  final color = isFamily ? Colors.green : Colors.pink;
-                  final titlePrefix = isFamily
-                      ? "가족 목표"
-                      : username + " 님의 개인 목표";
+                  final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
+                  final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
 
                   return Container(
                     decoration: BoxDecoration(
@@ -278,9 +275,12 @@ class _BucketListScreenState extends State<BucketListScreen> {
                                   ],
                                 ),
                                 SizedBox(height: 5),
-                                Text(
-                                  item['bucket_title'],
-                                  style: TextStyle(fontSize: 18),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 18.0), // content를 오른쪽으로 약간 이동
+                                  child: Text(
+                                    item['bucket_title'],
+                                    style: TextStyle(fontSize: 18),
+                                  ),
                                 ),
                               ],
                             ),
@@ -292,9 +292,9 @@ class _BucketListScreenState extends State<BucketListScreen> {
                               });
                             },
                             child: Icon(
-                              item['is_completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                              Icons.check_circle,
                               size: 40,
-                              color: item['is_completed'] ? Colors.orange : Colors.grey,
+                              color: item['is_completed'] ? Colors.orange : Color(0xFFFFECC3),
                             ),
                           ),
                         ],
@@ -303,8 +303,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                   );
                 },
               ),
-              SizedBox(height: 20),
-              // Add Bucket List Button
+              SizedBox(height: 50), // 리스트와 버튼 사이 간격 추가
               Center(
                 child: ElevatedButton(
                   onPressed: _showAddBucketDialog,
@@ -313,7 +312,7 @@ class _BucketListScreenState extends State<BucketListScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30.0),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 20), // 버튼의 세로 크기 조정
                   ),
                   child: Text(
                     "버킷리스트 생성 하기",
