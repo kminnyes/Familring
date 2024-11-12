@@ -198,11 +198,26 @@ def complete_bucketlist(request, bucket_id):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import BucketList, FamilyList
+from .models import BucketList
+from .serializers import BucketListSerializer
+
+@api_view(['PUT'])
+def update_bucket(request, bucket_id):
+    try:
+        bucket = BucketList.objects.get(bucket_id=bucket_id)
+    except BucketList.DoesNotExist:
+        return Response({'error': 'Bucket not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BucketListSerializer(bucket, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated

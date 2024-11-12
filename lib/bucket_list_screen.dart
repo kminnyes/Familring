@@ -79,6 +79,60 @@ class _BucketListScreenState extends State<BucketListScreen> {
     }
   }
 
+  void _editBucketItem(int bucketId, String updatedTitle) async {
+    try {
+      Map<String, String> headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('http://127.0.0.1:8000/api/bucket/update/' + bucketId.toString() + '/'),
+        headers: headers,
+        body: jsonEncode({'bucket_title': updatedTitle}),
+      );
+      if (response.statusCode == 200) {
+        _fetchBucketLists();
+      } else {
+        throw Exception('Failed to update bucket list item');
+      }
+    } catch (error) {
+      print('Error updating bucket list item: $error');
+    }
+  }
+
+  void _showEditDialog(BuildContext context, int bucketId, String currentTitle) {
+    String updatedTitle = currentTitle;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('버킷리스트 수정'),
+          content: TextField(
+            onChanged: (value) {
+              updatedTitle = value;
+            },
+            controller: TextEditingController(text: currentTitle),
+            decoration: InputDecoration(hintText: '새로운 버킷리스트 제목'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('취소'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('수정'),
+              onPressed: () {
+                _editBucketItem(bucketId, updatedTitle);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   // 버킷리스트 삭제 API 호출
   Future<void> _deleteBucketItem(int bucketId) async {
     try {
@@ -309,85 +363,88 @@ class _BucketListScreenState extends State<BucketListScreen> {
                 ],
               ),
               SizedBox(height: 20),
-              ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _familyBucketList.length + _personalBucketList.length,
-                itemBuilder: (context, index) {
-                  final isFamily = index < _familyBucketList.length;
-                  final item = isFamily
-                      ? _familyBucketList[index]
-                      : _personalBucketList[index - _familyBucketList.length];
-                  final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
-                  final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
+            ListView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: _familyBucketList.length + _personalBucketList.length,
+              itemBuilder: (context, index) {
+                final isFamily = index < _familyBucketList.length;
+                final item = isFamily
+                    ? _familyBucketList[index]
+                    : _personalBucketList[index - _familyBucketList.length];
+                final color = isFamily ? Color(0xFF38963B) : Color(0xFFFF9CBA);
+                final titlePrefix = isFamily ? "가족 목표" : "$nickname 님의 개인 목표";
 
-                  return GestureDetector(
-                    onLongPress: () {
-                      _showDeleteConfirmationDialog(item['bucket_id']);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      margin: EdgeInsets.symmetric(vertical: 5),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                        ),
+                return GestureDetector(
+                  onTap: () {
+                    _showEditDialog(context, item['bucket_id'], item['bucket_title']);
+                  },
+                  onLongPress: () {
+                    _showDeleteConfirmationDialog(item['bucket_id']);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Color.fromARGB(255, 255, 186, 81)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    margin: EdgeInsets.symmetric(vertical: 5),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
                                       ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        titlePrefix,
-                                        style: TextStyle(fontSize: 14, color: Colors.black54),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 5),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 18.0), // content를 오른쪽으로 약간 이동
-                                    child: Text(
-                                      item['bucket_title'],
-                                      style: TextStyle(fontSize: 18),
                                     ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      titlePrefix,
+                                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 5),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 18.0), // content를 오른쪽으로 약간 이동
+                                  child: Text(
+                                    item['bucket_title'],
+                                    style: TextStyle(fontSize: 18),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
-                                });
-                              },
-                              child: Icon(
-                                Icons.check_circle,
-                                size: 40,
-                                color: item['is_completed'] ? Colors.orange : Color(0xFFFFECC3),
-                              ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _toggleCompleteBucketItem(item['bucket_id'], !item['is_completed']);
+                              });
+                            },
+                            child: Icon(
+                              Icons.check_circle,
+                              size: 40,
+                              color: item['is_completed'] ? Colors.orange : Color(0xFFFFECC3),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
-              SizedBox(height: 50), // 리스트와 버튼 사이 간격 추가
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 50), // 리스트와 버튼 사이 간격 추가
               Center(
                 child: ElevatedButton(
                   onPressed: _showAddBucketDialog,
