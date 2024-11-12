@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return {
               "name": isFamilyEvent ? '우리 가족' : nickname,
               "task": eventData['event_content'],
-              "img": isFamilyEvent ? "images/familring_icon_in_bkl.png" : "images/familring_user_icon1.png"
+              "img": isFamilyEvent ? "images/familring_icon_in_bkl.png" : "images/familring_user_icon4.png"
             };
           }).toList();
         });
@@ -330,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Image.asset(
-            "images/familring_user_icon1.png",
+            "images/familring_user_icon4.png",
             fit: BoxFit.contain,
           ),
         ),
