@@ -89,7 +89,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 2; // 완료되면 0으로 바꿔서 home_screen으로 전환할 것!
+  int _selectedIndex = 0; // 완료되면 0으로 바꿔서 home_screen으로 전환할 것!
 
   @override
   void initState() {
